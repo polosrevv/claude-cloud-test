@@ -837,11 +837,21 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
-try {
-  window.game = new Game();
-} catch (err) {
-  console.error(err);
-  $('title').hidden = true;
-  $('fatal').hidden = false;
-  $('fatal-text').textContent = err.message || String(err);
+function start() {
+  try {
+    window.game = new Game();
+    // When hosted somewhere that can hot-swap the page, save before the swap.
+    window.claude?.hot?.snapshot?.(() => {
+      window.game?.save();
+      return {};
+    });
+  } catch (err) {
+    console.error(err);
+    $('title').hidden = true;
+    $('fatal').hidden = false;
+    $('fatal-text').textContent = err.message || String(err);
+  }
 }
+
+if (window.claude?.hot?.ready) window.claude.hot.ready(start);
+else start();
