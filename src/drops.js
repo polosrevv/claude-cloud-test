@@ -40,7 +40,7 @@ function roll(min, max) {
 }
 
 // Ores whose drops Fortune multiplies.
-const FORTUNE_ORES = new Set(['coal_ore', 'diamond_ore', 'lapis_ore', 'nether_quartz_ore']);
+const FORTUNE_ORES = new Set(['coal_ore', 'diamond_ore', 'emerald_ore', 'lapis_ore', 'nether_quartz_ore']);
 // Blocks Silk Touch can't lift whole: they come in parts or have no item.
 const NO_SILK = (def) => def.crop !== undefined || def.door || def.bed || def.portal || def.entity === 'spawner';
 
@@ -88,7 +88,7 @@ export function dropsFor(id, itemKey, { silk = false, fortune = 0 } = {}) {
 }
 
 // Experience a block gives when mined by a player (none with Silk Touch).
-const BLOCK_XP = { coal_ore: [0, 2], diamond_ore: [3, 7], lapis_ore: [2, 5], nether_quartz_ore: [2, 5], spawner: [15, 43] };
+const BLOCK_XP = { coal_ore: [0, 2], diamond_ore: [3, 7], emerald_ore: [3, 7], lapis_ore: [2, 5], nether_quartz_ore: [2, 5], spawner: [15, 43] };
 export function blockXp(id) {
   const range = BLOCK_XP[BLOCKS[id].key];
   return range ? roll(range[0], range[1]) : 0;

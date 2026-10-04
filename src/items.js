@@ -150,6 +150,7 @@ mat('bowl', 'Bowl', { fuel: 0.5 });
 mat('pumpkin_seeds', 'Pumpkin Seeds', { use: 'plant', plants: 'pumpkin_stem_0', tab: 'nature' });
 mat('melon_seeds', 'Melon Seeds', { use: 'plant', plants: 'melon_stem_0', tab: 'nature' });
 mat('gold_nugget', 'Gold Nugget');
+mat('emerald', 'Emerald');
 mat('ghast_tear', 'Ghast Tear');
 mat('slimeball', 'Slimeball');
 mat('ink_sac', 'Ink Sac');

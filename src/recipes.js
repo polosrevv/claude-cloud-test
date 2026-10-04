@@ -112,6 +112,8 @@ for (const [wool, dye] of [['orange', 'orange_dye'], ['magenta', 'magenta_dye'],
   shapeless(`wool_${wool}`, 1, [dye, 'wool_white']);
 }
 shapeless('gold_nugget', 9, ['gold_ingot']);
+shaped('emerald_block', 1, ['XXX', 'XXX', 'XXX'], { X: 'emerald' });
+shapeless('emerald', 9, ['emerald_block']);
 shapeless('lapis_lazuli', 9, ['lapis_block']);
 
 export const SMELTING = {
@@ -132,6 +134,7 @@ export const SMELTING = {
   nether_quartz_ore: 'quartz',
   lapis_ore: 'lapis_lazuli',
   cactus: 'green_dye',
+  emerald_ore: 'emerald',
 };
 
 // Experience a furnace stores for each item it smelts, paid out when you take the result.

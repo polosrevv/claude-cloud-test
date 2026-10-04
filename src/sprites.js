@@ -295,6 +295,21 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
     item_bone_meal(t, r) { pile(t, r, [236, 234, 226]); },
     item_leather(t, r) { clear(t); disk(t, r, 8, 8, 6, 5.5, [150, 90, 48], 0.1); rim(t); },
     item_rotten_flesh(t, r) { clear(t); disk(t, r, 8, 8.5, 6, 4.5, [120, 110, 56], 0.25); rim(t); },
+    item_emerald(t, r) {
+      clear(t);
+      art(t, r, ['', '',
+        '.......oo.......',
+        '......olgo......',
+        '.....olg##o.....',
+        '....olg####o....',
+        '....og#####o....',
+        '....o######o....',
+        '....o######o....',
+        '.....o####o.....',
+        '......o##o......',
+        '.......oo.......',
+      ], { l: [210, 255, 220], g: [120, 240, 160], '#': [40, 190, 90], o: [16, 90, 44] });
+    },
     item_gold_nugget(t, r) { clear(t); disk(t, r, 8, 9, 3.2, 2.6, [250, 214, 70], 0.1); disk(t, r, 6.5, 6.5, 1.6, 1.4, [255, 240, 150], 0.05); rim(t, 0.6); },
     item_ghast_tear(t, r) {
       clear(t);

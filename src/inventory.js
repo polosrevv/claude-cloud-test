@@ -276,6 +276,11 @@ const LOOT = {
     ['gold_ingot', 1, 3, 0.3], ['diamond', 1, 3, 0.2], ['iron_pickaxe', 1, 1, 0.15], ['iron_sword', 1, 1, 0.15],
     ['iron_chestplate', 1, 1, 0.1], ['blaze_rod', 1, 2, 0.25],
   ],
+  village: [
+    ['bread', 1, 3, 0.6], ['apple', 1, 3, 0.5], ['iron_ingot', 1, 5, 0.5], ['gold_ingot', 1, 3, 0.25], ['diamond', 1, 3, 0.08],
+    ['iron_pickaxe', 1, 1, 0.2], ['iron_sword', 1, 1, 0.2], ['iron_helmet', 1, 1, 0.15], ['obsidian', 3, 7, 0.2],
+    ['oak_sapling', 3, 7, 0.3], ['emerald', 1, 3, 0.25],
+  ],
   fortress: [
     ['gold_ingot', 1, 3, 0.6], ['iron_ingot', 1, 5, 0.5], ['diamond', 1, 3, 0.25], ['flint_and_steel', 1, 1, 0.25],
     ['obsidian', 2, 4, 0.2], ['golden_chestplate', 1, 1, 0.15], ['blaze_rod', 1, 3, 0.4],

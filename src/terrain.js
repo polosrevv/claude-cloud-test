@@ -7,6 +7,7 @@ import { CHUNK, HEIGHT, SEA_LEVEL, blockIndex } from './constants.js';
 import { broadleafTree, spruceTree, strongholdRoom, STRONGHOLD_SIZE, dungeon, DUNGEON_SIZE } from './structures.js';
 import { createNether } from './nether.js';
 import { createEnd } from './end.js';
+import { createVillages, VILLAGE_CELL } from './village.js';
 
 export { CHUNK, HEIGHT, SEA_LEVEL, blockIndex };
 
@@ -210,6 +211,8 @@ function createOverworld(seed) {
     return strongholdList;
   }
 
+  const villages = createVillages(seed, column, (biome) => (biome === BIOME.PLAINS ? 'plains' : biome === BIOME.DESERT ? 'desert' : biome === BIOME.TUNDRA ? 'tundra' : null));
+
   // At most one dungeon per 48x48 area, buried well below the surface.
   const DUNGEON_CELL = 48;
   function dungeonIn(gx, gz) {
@@ -247,10 +250,25 @@ function createOverworld(seed) {
       if (s.x + STRONGHOLD_SIZE[0] < x0 || s.x > x0 + CHUNK || s.z + STRONGHOLD_SIZE[2] < z0 || s.z > z0 + CHUNK) continue;
       strongholdRoom(set, s.x, s.y, s.z, strongholdSeed);
     }
+    for (const v of villages.near(x0, z0, x0 + CHUNK - 1, z0 + CHUNK - 1)) villages.build(v, set, x0, z0, x0 + CHUNK - 1, z0 + CHUNK - 1);
+  }
+
+  // Villagers and golems that move in when a village chunk first loads.
+  function residentsIn(cx, cz) {
+    const x0 = cx * CHUNK;
+    const z0 = cz * CHUNK;
+    const out = [];
+    for (const v of villages.near(x0, z0, x0 + CHUNK - 1, z0 + CHUNK - 1)) {
+      for (const r of villages.residents(v)) {
+        if (r.x >= x0 && r.x < x0 + CHUNK && r.z >= z0 && r.z < z0 + CHUNK) out.push({ ...r, village: [v.x, v.y, v.z] });
+      }
+    }
+    return out;
   }
 
   // Which loot table a generated chest at (x, y, z) belongs to.
   function chestLoot(x, y, z) {
+    for (const v of villages.near(x, z, x, z)) if (villages.insideBuilding(v, x, y, z)) return 'village';
     for (const s of strongholds()) {
       if (x >= s.x && x < s.x + STRONGHOLD_SIZE[0] && z >= s.z && z < s.z + STRONGHOLD_SIZE[2] && y >= s.y && y < s.y + STRONGHOLD_SIZE[1]) return 'stronghold';
     }
@@ -263,6 +281,24 @@ function createOverworld(seed) {
   }
 
   function locate(kind, x, z) {
+    if (kind === 'village') {
+      // Search outward ring by ring of village cells.
+      const gx0 = Math.floor(x / VILLAGE_CELL);
+      const gz0 = Math.floor(z / VILLAGE_CELL);
+      let found = null;
+      for (let ring = 0; ring < 8 && !found; ring++) {
+        for (let gz = gz0 - ring; gz <= gz0 + ring; gz++) {
+          for (let gx = gx0 - ring; gx <= gx0 + ring; gx++) {
+            if (Math.max(Math.abs(gx - gx0), Math.abs(gz - gz0)) !== ring) continue;
+            const v = villages.villageIn(gx, gz);
+            if (!v) continue;
+            const d = Math.hypot(v.x - x, v.z - z);
+            if (!found || d < found.distance) found = { x: v.x, y: v.y, z: v.z, distance: d };
+          }
+        }
+      }
+      return found;
+    }
     if (kind !== 'stronghold') return null;
     let best = null;
     for (const s of strongholds()) {
@@ -298,6 +334,9 @@ function createOverworld(seed) {
     vein(B.DIRT, 3, 18, 8, 90);
     // Added last so the veins above stay where they were in older worlds.
     if (r() < 0.8) vein(B.LAPIS_ORE, 1, 7, 5, 32);
+    // Emeralds: single ores, only under the mountains.
+    const biome = column(cx * CHUNK + 8, cz * CHUNK + 8, {}).biome;
+    if (biome === BIOME.MOUNTAINS || biome === BIOME.PEAKS) vein(B.EMERALD_ORE, 3 + Math.floor(r() * 5), 1, 4, 32);
   }
 
   function addPlants(data, heights, biomes, x0, z0) {
@@ -345,6 +384,8 @@ function createOverworld(seed) {
         if (roll > 0.75) continue;
         const tx = gx * TREE_CELL + Math.floor(hash2(gx, gz, treeSeed) * 3);
         const tz = gz * TREE_CELL + Math.floor(hash2(gx, gz, treeSeed + 1) * 3);
+        // Villages keep their streets and gardens clear of trees.
+        if (villages.covers(tx, tz)) continue;
         column(tx, tz, info);
         if (roll >= TREE_DENSITY[info.biome] || info.h <= SEA_LEVEL || info.h + 12 >= HEIGHT) continue;
         const ground = surface(info, tx, tz).top;
@@ -401,5 +442,6 @@ function createOverworld(seed) {
     spawnerMob,
     locate,
     biomeName: (x, z) => BIOME_NAMES[columnInfo(x, z).biome],
+    residentsIn,
   };
 }

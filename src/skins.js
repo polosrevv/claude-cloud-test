@@ -225,6 +225,27 @@ const SKINS = {
     });
     paintBox(img, 48, 0, 2, 18, 2, (face, x, y) => vary(r, y > 12 ? [80, 100, 130] : ink, 0.08));
   },
+  villager_farmer(img, r) { villagerSkin(img, r, [116, 82, 52], [150, 112, 70], null); },
+  villager_librarian(img, r) { villagerSkin(img, r, [232, 230, 222], [200, 196, 186], [150, 30, 30]); },
+  villager_priest(img, r) { villagerSkin(img, r, [112, 48, 150], [140, 70, 176], [214, 180, 60]); },
+  villager_smith(img, r) { villagerSkin(img, r, [66, 62, 60], [90, 86, 82], [26, 24, 24]); },
+  villager_butcher(img, r) { villagerSkin(img, r, [236, 234, 228], [210, 206, 198], [170, 40, 40]); },
+  iron_golem(img, r) {
+    const iron = [206, 200, 192];
+    const vine = (x, y) => (Math.sin(x * 1.3 + y * 0.4) > 0.7 && r() < 0.6 ? [70, 120, 40] : null);
+    paintBox(img, 0, 0, 18, 12, 11, (face, x, y) => vine(x, y) ?? vary(r, (x + y) % 6 === 0 ? [176, 170, 162] : iron, 0.05));
+    paintBox(img, 0, 23, 8, 10, 8, (face, x, y) => {
+      if (face === 'front') {
+        if (y === 3 && (x === 1 || x === 6)) return [130, 20, 20];
+        if (y === 2 && x >= 1 && x <= 6) return [150, 144, 136];
+      }
+      return vary(r, iron, 0.04);
+    });
+    paintBox(img, 54, 23, 2, 4, 2, () => vary(r, [190, 184, 176], 0.04));
+    paintBox(img, 32, 23, 2, 15, 3, (face, x, y) => vine(x * 3, y) ?? vary(r, y > 12 ? [180, 174, 166] : iron, 0.05));
+    paintBox(img, 42, 23, 3, 8, 3, () => vary(r, iron, 0.05));
+    paintBox(img, 0, 41, 9, 5, 6, () => vary(r, [170, 164, 156], 0.05));
+  },
   crystal(img, r) {
     paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => (x === 0 || y === 0 || x === 7 || y === 7 ? [240, 200, 255, 230] : [220, 120, 240, 120]));
     paintBox(img, 32, 0, 8, 8, 8, () => vary(r, [255, 170, 240], 0.15));
@@ -248,6 +269,29 @@ const SKINS = {
     paintBox(img, 0, 16, 4, 12, 4, (face, x, y) => (y > 10 ? vary(r, [80, 80, 86], 0.05) : vary(r, [50, 60, 160], 0.05)));
   },
 };
+
+function villagerSkin(img, r, robe, robeLight, trim) {
+  const skin = [196, 146, 108];
+  paintBox(img, 0, 0, 8, 10, 8, (face, x, y) => {
+    if (face === 'front') {
+      if (y === 4 && (x === 1 || x === 6)) return [255, 255, 255];
+      if (y === 4 && (x === 2 || x === 5)) return [40, 120, 60];
+      if (y === 3 && x >= 1 && x <= 6) return [90, 60, 40];
+      if (y >= 7 && x >= 2 && x <= 5) return vary(r, [176, 128, 92], 0.04);
+    }
+    if (face === 'top') return vary(r, [180, 132, 96], 0.05);
+    return vary(r, skin, 0.04);
+  });
+  paintBox(img, 32, 0, 2, 4, 2, () => vary(r, [186, 134, 98], 0.04));
+  paintBox(img, 16, 20, 8, 12, 6, (face, x, y) => (trim && (face === 'front' || face === 'back') && x >= 3 && x <= 4 ? trim : vary(r, robe, 0.05)));
+  paintBox(img, 0, 38, 8, 18, 6, (face, x, y) => {
+    if (trim && face === 'front' && y >= 2 && y <= 12 && x >= 2 && x <= 5) return vary(r, trim, 0.05);
+    return vary(r, y > 15 ? robeLight : robe, 0.05);
+  });
+  paintBox(img, 44, 22, 4, 8, 4, (face, x, y) => (y > 5 ? vary(r, skin, 0.04) : vary(r, robe, 0.05)));
+  paintBox(img, 40, 38, 8, 4, 4, () => vary(r, robe, 0.05));
+  paintBox(img, 0, 22, 4, 12, 4, (face, x, y) => vary(r, y > 9 ? [60, 46, 36] : robe, 0.05));
+}
 
 function ghastSkin(img, r, firing) {
   const white = [240, 240, 240];

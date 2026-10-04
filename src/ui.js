@@ -10,6 +10,7 @@ import { BIOME_NAMES } from './terrain.js';
 import { clockLabel } from './sky.js';
 import { BLOCKS } from './blocks.js';
 import { describe, enchantName } from './enchantments.js';
+import { PROFESSIONS } from './villagers.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -186,7 +187,7 @@ export class Hud {
 
   advancement(a) {
     const el = $('advancement');
-    const item = a.has?.[0] ?? { kill: 'iron_sword', enchant: 'enchanting_table', tame: 'bone', return_to_sender: 'ghast_tear', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
+    const item = a.has?.[0] ?? { kill: 'iron_sword', enchant: 'enchanting_table', tame: 'bone', return_to_sender: 'ghast_tear', trade: 'emerald', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
     $('adv-icon').src = this.icon(ITEMS[item] ? item : 'grass');
     $('adv-title').textContent = a.title;
     el.classList.remove('out');
@@ -457,6 +458,28 @@ export class Hud {
         </div>
         <div class="side-note" style="max-width:none">Your level: <b>${p.vulnerable ? p.xpLevel : '∞'}</b> · Bookshelves: <b>${shelves}</b>/15. Bookshelves two blocks from the table make stronger offers.</div>
         ${player()}`;
+    } else if (w.kind === 'trade') {
+      const v = w.data;
+      title = PROFESSIONS[v.profession]?.name ?? 'Villager';
+      const stackHtml = (st) => {
+        const src = this.icon(st.item);
+        const name = [ITEMS[st.item].name, ...describe(st)].join(', ');
+        return `<span class="tr-item" title="${escapeHtml(name)}"><img alt="${escapeHtml(name)}" src="${src}">${glint(st, src)}${st.count > 1 ? `<span class="n">${st.count}</span>` : ''}</span>`;
+      };
+      const rows = (v.trades ?? []).map((t, i) => {
+        const out = t.uses >= t.max;
+        const can = !out && t.give.every((g) => inv.main.count(g.item) >= g.count);
+        return `<button type="button" class="trade" data-trade="${i}"${can ? '' : ' aria-disabled="true"'}>
+          <span class="tr-cost">${t.give.map(stackHtml).join('')}</span>
+          <span class="tr-arrow" aria-hidden="true">→</span>
+          ${stackHtml(t.get)}
+          <span class="tr-note">${out ? 'Out of stock' : `${t.max - t.uses} left`}</span>
+        </button>`;
+      }).join('');
+      body = `
+        <div class="side-note" style="max-width:none">Click a trade to make it. Villagers restock after a while.</div>
+        <div class="trades">${rows}</div>
+        ${player()}`;
     } else if (w.kind === 'chest') {
       title = 'Chest';
       body = `${grid(9, range({ slots: w.data.slots }, 0, 27, 'normal', 'chest'))}${player()}`;
@@ -477,6 +500,10 @@ export class Hud {
     el.innerHTML = `<div class="gui" role="dialog" aria-label="${title}"><div class="gui-head"><span class="gui-title">${title}</span><button type="button" class="btn small" id="window-close">Done</button></div>${body}</div>`;
     this.refs = refs;
     $('window-close').addEventListener('click', () => this.closeScreen());
+    el.querySelectorAll('[data-trade]').forEach((b) => b.addEventListener('click', () => {
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      if (game.trade(w.data, Number(b.dataset.trade))) this.renderWindow();
+    }));
     el.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {
       if (b.getAttribute('aria-disabled') === 'true') return;
       if (game.enchantItem(w.data, Number(b.dataset.offer))) {

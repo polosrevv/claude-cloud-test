@@ -422,6 +422,9 @@ export function serializeEntity(e) {
     const out = { ...base, health: e.health, baby: e.growUp ?? 0, sheared: !!e.sheared, persistent: !!e.persistent };
     if (e.tamed) Object.assign(out, { tamed: true, sitting: !!e.sitting });
     if (e.size) out.size = e.size;
+    if (e.profession) out.profession = e.profession;
+    if (e.trades) out.trades = e.trades;
+    if (e.home) out.home = e.home;
     return out;
   }
   if (e.kind === 'crystal') return { ...base };
@@ -446,6 +449,9 @@ export function deserializeEntity(s) {
     e.persistent = s.persistent;
     e.tamed = !!s.tamed;
     e.sitting = !!s.sitting;
+    if (s.profession) e.profession = s.profession;
+    if (s.trades) e.trades = s.trades;
+    if (s.home) e.home = s.home;
     return e;
   }
   if (s.kind === 'crystal') return endCrystal(x, y, z);

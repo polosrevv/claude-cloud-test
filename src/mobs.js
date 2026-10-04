@@ -21,6 +21,8 @@ export const MOBS = {
   wolf: { name: 'Wolf', model: 'wolf', hw: 0.3, h: 0.85, health: 8, speed: 3.0, neutral: true, damage: [3, 4, 6], drops: [], sound: 'wolf', meats: ['beef', 'steak', 'porkchop', 'cooked_porkchop', 'chicken', 'cooked_chicken', 'mutton', 'cooked_mutton', 'rotten_flesh'] },
   slime: { name: 'Slime', model: 'slime', hw: 1.02, h: 2.04, health: 16, speed: 2.6, hostile: true, drops: [], sound: 'slime' },
   squid: { name: 'Squid', model: 'squid', hw: 0.4, h: 0.8, health: 10, speed: 1.8, aquatic: true, despawn: true, drops: [['ink_sac', 1, 3]], sound: 'squid' },
+  villager: { name: 'Villager', model: 'villager_farmer', hw: 0.3, h: 1.95, health: 20, speed: 2.0, villager: true, drops: [], sound: 'villager' },
+  iron_golem: { name: 'Iron Golem', model: 'iron_golem', hw: 0.7, h: 2.7, health: 100, speed: 1.8, golem: true, damage: [7, 14, 21], drops: [['iron_ingot', 3, 5], ['poppy', 0, 2]], sound: 'golem' },
   dragon: { name: 'Ender Dragon', model: 'dragon', hw: 4, h: 4, health: 200, speed: 12, hostile: true, boss: true, fireImmune: true, drops: [], sound: 'dragon' },
 };
 
@@ -213,12 +215,13 @@ export function hurtMob(e, amount, game, source = {}) {
   }
   e.health -= amount;
   e.hurtTime = 10;
-  if (source.dir && e.type !== 'dragon') {
+  if (source.dir && e.type !== 'dragon' && !def.golem) {
     const k = source.knockback ?? 1;
     const len = Math.hypot(source.dir[0], source.dir[2]) || 1;
     e.vel[0] = (source.dir[0] / len) * 4 * k;
     e.vel[2] = (source.dir[2] / len) * 4 * k;
     if (e.onGround) e.vel[1] = 4.5;
+    if (source.attacker?.def.golem) e.vel[1] = 9;
   }
   if (def.passive) {
     e.panic = 100;
@@ -236,6 +239,9 @@ export function hurtMob(e, amount, game, source = {}) {
       }
     }
     if (e.tamed) e.sitting = false;
+    if (e.def.villager || e.def.golem) {
+      for (const g of game.entities.mobs((m) => m.def.golem && Math.hypot(m.pos[0] - e.pos[0], m.pos[2] - e.pos[2]) < 24)) g.angry = true;
+    }
   } else if (source.byPlayer) {
     // Kills by your tamed wolves count as yours.
     e.lastHitByPlayer = game.tickCount;
@@ -350,7 +356,11 @@ export function tickMob(e, game) {
   const target = chooseTarget(e, game);
   e.target = target;
   e.lookTarget = null;
-  if (e.type === 'wolf') wolfAI(e, game, wish, target);
+  if (def.villager) villagerAI(e, game, wish);
+  else if (def.golem) {
+    if (target) meleeAI(e, game, wish, target);
+    else stayHome(e, game, wish, 0.4);
+  } else if (e.type === 'wolf') wolfAI(e, game, wish, target);
   else if (e.type === 'squid') squidAI(e, game, wish);
   else if (e.type === 'ghast') ghastAI(e, game, wish, target);
   else if (e.type === 'slime') slimeAI(e, game, wish, target);
@@ -439,6 +449,13 @@ function environment(e, game) {
 function chooseTarget(e, game) {
   const def = e.def;
   const p = game.player;
+  if (def.villager) return null;
+  if (def.golem) return golemTarget(e, game);
+  if (e.type === 'zombie' && game.difficulty !== 'peaceful') {
+    // Zombies go for villagers too, whichever is closer.
+    const v = nearestMob(e, game, (m) => m.def.villager, 16);
+    if (v && (p.dead || !p.vulnerable || Math.hypot(v.pos[0] - e.pos[0], v.pos[2] - e.pos[2]) < Math.hypot(p.pos[0] - e.pos[0], p.pos[2] - e.pos[2]))) return v;
+  }
   if (def.passive || p.dead || !p.vulnerable || game.difficulty === 'peaceful') {
     e.angry = false;
     return null;
@@ -479,6 +496,28 @@ function chooseTarget(e, game) {
   if (canSee(game.world, eye, p.eye, range)) e.lastSeen = game.tickCount;
   if (e.lastSeen !== undefined && game.tickCount - e.lastSeen < 100) return p;
   return null;
+}
+
+function nearestMob(e, game, filter, range) {
+  let best = null;
+  let bestD = range;
+  for (const m of game.entities.list) {
+    if (m.kind !== 'mob' || m === e || m.removed || m.deathTime > 0 || !filter(m)) continue;
+    const d = Math.hypot(m.pos[0] - e.pos[0], m.pos[1] - e.pos[1], m.pos[2] - e.pos[2]);
+    if (d < bestD) { best = m; bestD = d; }
+  }
+  return best;
+}
+
+// Iron golems guard their village: they go after monsters (never creepers),
+// and after a player who has hurt a villager or the golem itself.
+function golemTarget(e, game) {
+  const p = game.player;
+  if (e.angry && !p.dead && p.vulnerable && Math.hypot(p.pos[0] - e.pos[0], p.pos[2] - e.pos[2]) < 24) return p;
+  e.angry = false;
+  if (e.prey && !e.prey.removed && e.prey.deathTime === 0 && Math.hypot(e.prey.pos[0] - e.pos[0], e.prey.pos[2] - e.pos[2]) < 20) return e.prey;
+  e.prey = nearestMob(e, game, (m) => m.def.hostile && m.type !== 'creeper' && m.type !== 'dragon' && m.type !== 'ghast' && !(m.type === 'zombie_pigman' && !m.angry), 16);
+  return e.prey;
 }
 
 function steerTo(e, wish, x, z, speedMul = 1) {
@@ -656,6 +695,47 @@ function wolfAI(e, game, wish, target) {
   if (Math.random() < 0.003) game.sound('wolf_say', e.pos);
 }
 
+// Wander, but never far from home (a village's well).
+function stayHome(e, game, wish, speed) {
+  const home = e.home;
+  wish.speed = e.def.speed * speed;
+  if (home && Math.hypot(home[0] - e.pos[0], home[2] - e.pos[2]) > 24) {
+    walkTo(e, game, wish, home);
+    return;
+  }
+  if (!e.wander && Math.random() < 0.01) {
+    const base = home ?? e.pos;
+    e.wander = [base[0] + (Math.random() - 0.5) * 30, e.pos[1], base[2] + (Math.random() - 0.5) * 30];
+  }
+  if (e.wander) {
+    if (Math.hypot(e.wander[0] - e.pos[0], e.wander[2] - e.pos[2]) < 1 || e.age % 200 === 0) e.wander = null;
+    else walkTo(e, game, wish, e.wander);
+  }
+}
+
+// Villagers potter about the village, stop to face whoever is trading with
+// them, and run from zombies.
+function villagerAI(e, game, wish) {
+  if (e.restock > 0 && --e.restock === 0) for (const t of e.trades ?? []) t.uses = 0;
+  const p = game.player;
+  if (e.trading > 0) {
+    e.trading--;
+    wish.speed = 0;
+    e.lookTarget = { pos: p.pos, h: 2 };
+    return;
+  }
+  const zombie = nearestMob(e, game, (m) => m.type === 'zombie', 8);
+  if (zombie) {
+    wish.speed = e.def.speed * 1.4;
+    steerTo(e, wish, e.pos[0] - (zombie.pos[0] - e.pos[0]) * 4, e.pos[2] - (zombie.pos[2] - e.pos[2]) * 4);
+    if (e.collidedH) wish.jump = true;
+    return;
+  }
+  stayHome(e, game, wish, 0.5);
+  if (Math.hypot(p.pos[0] - e.pos[0], p.pos[2] - e.pos[2]) < 5 && Math.random() < 0.6) e.lookTarget = { pos: p.pos, h: 2 };
+  if (Math.random() < 0.003) game.sound('villager_say', e.pos);
+}
+
 // Squid drift through the water in slow pulses.
 function squidAI(e, game, wish) {
   if (!e.inWater) {
@@ -780,12 +860,13 @@ function meleeAI(e, game, wish, target) {
     e.vel[0] = ((p.pos[0] - e.pos[0]) / dist) * 6;
     e.vel[2] = ((p.pos[2] - e.pos[2]) / dist) * 6;
   }
-  const reach = e.hw + 0.3 + 1.2;
+  const reach = e.hw + (p.hw ?? 0.3) + 1.2;
   if (dist < reach && dy > -1.5 && dy < e.h && e.attackCooldown === 0) {
     e.attackCooldown = 20;
     e.attackAnim = 1;
     const dmg = def.damage[difficultyIndex(game.difficulty)];
-    game.damagePlayer(dmg, 'mob', e);
+    if (p === game.player) game.damagePlayer(dmg, 'mob', e);
+    else hurtMob(p, dmg, game, { kind: 'mob', attacker: e, dir: [p.pos[0] - e.pos[0], 0, p.pos[2] - e.pos[2]] });
   }
   if (Math.random() < 0.004) game.sound(`${def.sound}_say`, e.pos);
 }

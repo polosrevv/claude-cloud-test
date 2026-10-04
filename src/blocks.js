@@ -250,6 +250,8 @@ for (const fruit of ['pumpkin', 'melon']) {
 }
 def({ key: 'brown_mushroom', name: 'Brown Mushroom', tex: 'brown_mushroom', ...plant, mushroom: true, emit: 1 });
 def({ key: 'red_mushroom', name: 'Red Mushroom', tex: 'red_mushroom', ...plant, mushroom: true });
+def({ key: 'emerald_ore', name: 'Emerald Ore', tex: 'emerald_ore', ...stoneLike({ hardness: 3, tier: 2, drops: 'emerald' }) });
+def({ key: 'emerald_block', name: 'Block of Emerald', tex: 'emerald_block', ...stoneLike({ hardness: 5, tier: 2, resistance: 6 }) });
 // Cake: seven slices, eaten one right-click at a time.
 for (let bites = 0; bites < 7; bites++) {
   const x0 = 1 + bites * 2;

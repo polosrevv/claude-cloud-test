@@ -264,6 +264,30 @@ kbd {
 }
 .hslot .glint { inset: 14%; }
 @keyframes glint { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+/* Villager trades: what you pay, an arrow, what you get. */
+.trades { display: grid; gap: 4px; }
+.trade {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  border: 0;
+  text-align: left;
+  color: var(--gui-ink);
+  background: #a9a9a9;
+  box-shadow: inset 2px 2px 0 #fff, inset -2px -2px 0 #555;
+  font: 600 13px/1.2 var(--font-display);
+  cursor: pointer;
+}
+.trade:hover:not([aria-disabled="true"]) { background: #bdbdbd; }
+.trade[aria-disabled="true"] { cursor: not-allowed; opacity: 0.55; }
+.tr-cost { display: flex; gap: 4px; }
+.tr-item { position: relative; width: calc(var(--islot) * 0.9); height: calc(var(--islot) * 0.9); display: grid; place-items: center; }
+.tr-item img { width: 82%; height: 82%; }
+.tr-item .n { position: absolute; right: 0; bottom: -2px; font: 700 14px/1 var(--font-display); color: #fff; text-shadow: 2px 2px 0 #3f3f3f; }
+.tr-arrow { font: 700 22px/1 var(--font-display); color: #6a6a6a; }
+.tr-note { justify-self: end; color: #4a4a4a; font-weight: 500; }
 #tooltip .ench { color: #a8a8a8; font-weight: 500; }
 #tooltip .dim { color: #8f8f8f; font-weight: 500; }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; }

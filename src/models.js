@@ -251,6 +251,33 @@ export const MODEL_DEFS = {
       }
     },
   },
+  villager_farmer: villagerModel('villager_farmer'),
+  villager_librarian: villagerModel('villager_librarian'),
+  villager_priest: villagerModel('villager_priest'),
+  villager_smith: villagerModel('villager_smith'),
+  villager_butcher: villagerModel('villager_butcher'),
+  iron_golem: {
+    skin: 'iron_golem',
+    parts: [
+      { name: 'rightLeg', pivot: [4, 16, 0], cubes: [cube([-3, -16, -2.5], [6, 16, 5], [42, 23], { tex: [3, 8, 3] })] },
+      { name: 'leftLeg', pivot: [-4, 16, 0], cubes: [cube([-3, -16, -2.5], [6, 16, 5], [42, 23], { tex: [3, 8, 3] })] },
+      { name: 'waist', pivot: [0, 16, 0], cubes: [cube([-4.5, 0, -3], [9, 5, 6], [0, 41])] },
+      { name: 'body', pivot: [0, 21, 0], cubes: [cube([-9, 0, -5.5], [18, 12, 11], [0, 0])] },
+      { name: 'head', pivot: [0, 33, -2], cubes: [cube([-4, 0, -5.5], [8, 10, 8], [0, 23]), cube([-1, 1, -7.5], [2, 4, 2], [54, 23])] },
+      { name: 'rightArm', pivot: [11, 32, 0], cubes: [cube([-2, -29, -3], [4, 30, 6], [32, 23], { tex: [2, 15, 3] })] },
+      { name: 'leftArm', pivot: [-11, 32, 0], cubes: [cube([-2, -29, -3], [4, 30, 6], [32, 23], { tex: [2, 15, 3] })] },
+    ],
+    anim: (e, t, out) => {
+      const s = walk(e, 1);
+      out.head = { rot: [e.headPitch, e.headYaw, 0] };
+      out.rightLeg = { rot: [s * 0.6, 0, 0] };
+      out.leftLeg = { rot: [-s * 0.6, 0, 0] };
+      // Arms swing with the stride, and both come up to throw a punch.
+      const lift = e.attackAnim * 1.8;
+      out.rightArm = { rot: [-s * 0.6 - lift, 0, 0] };
+      out.leftArm = { rot: [s * 0.6 - lift, 0, 0] };
+    },
+  },
   crystal: {
     skin: 'crystal',
     parts: [
@@ -284,6 +311,26 @@ function ghastModel(skin) {
     anim: (e, t, out) => {
       for (let i = 0; i < 9; i++) out[`tentacle${i}`] = { rot: [Math.sin(t * 0.15 + i) * 0.25 + 0.15, 0, Math.cos(t * 0.11 + i * 2) * 0.12] };
       out.body = { rot: [0, e.headYaw, 0] };
+    },
+  };
+}
+
+function villagerModel(skin) {
+  return {
+    skin,
+    parts: [
+      { name: 'body', pivot: [0, 24, 0], cubes: [cube([-4, -12, -3], [8, 12, 6], [16, 20]), cube([-4, -18, -3], [8, 18, 6], [0, 38], { inflate: 0.5 })] },
+      { name: 'head', pivot: [0, 24, 0], cubes: [cube([-4, 0, -4], [8, 10, 8], [0, 0]), cube([-1, 1, -6], [2, 4, 2], [32, 0])] },
+      // Arms folded across the chest, as villagers stand.
+      { name: 'arms', pivot: [0, 21, -1], rot: [-0.75, 0, 0], cubes: [cube([-8, -2, -2], [4, 8, 4], [44, 22]), cube([4, -2, -2], [4, 8, 4], [44, 22]), cube([-4, 2, -2], [8, 4, 4], [40, 38])] },
+      { name: 'rightLeg', pivot: [2, 12, 0], cubes: [cube([-2, -12, -2], [4, 12, 4], [0, 22])] },
+      { name: 'leftLeg', pivot: [-2, 12, 0], cubes: [cube([-2, -12, -2], [4, 12, 4], [0, 22])] },
+    ],
+    anim: (e, t, out) => {
+      const s = walk(e, 1.2);
+      out.head = { rot: [e.headPitch, e.headYaw, Math.sin(t * 0.05) * (e.nodding ? 0.2 : 0)] };
+      out.rightLeg = { rot: [s, 0, 0] };
+      out.leftLeg = { rot: [-s, 0, 0] };
     },
   };
 }

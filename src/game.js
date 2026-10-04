@@ -12,6 +12,7 @@ import { Player } from './player.js';
 import { PlayerInventory, newFurnace, tickFurnace } from './inventory.js';
 import { EntityManager, itemEntity, xpOrb, projectile, primedTnt, serializeEntity, deserializeEntity } from './entities.js';
 import { MOBS, hurtMob, createMob } from './mobs.js';
+import { tradesFor } from './villagers.js';
 import { spawnTick, spawnerTick, populateChunk } from './spawning.js';
 import { BlockUpdater } from './blockupdates.js';
 import { DragonFight } from './dragon.js';
@@ -1060,6 +1061,16 @@ export class Game {
     if (e.kind !== 'mob') return;
     const def = e.def;
     if (e.type === 'wolf') return this.interactWolf(e, held);
+    if (def.villager) {
+      // Right-click a villager to see what it will trade.
+      e.profession ??= 'farmer';
+      e.trades ??= tradesFor(e.profession, e.id);
+      e.trading = 40;
+      this.swing = 0;
+      this.sound('villager_say', e.pos);
+      this.openScreen('trade', e);
+      return;
+    }
     if (held && def.food === held.item && def.passive) {
       if (e.growUp < 0) {
         e.growUp = Math.min(0, e.growUp + 600);
@@ -1781,6 +1792,29 @@ export class Game {
     this.state = 'playing';
   }
 
+  // One trade with a villager: hand over the price, get the goods, and some experience.
+  trade(villager, i) {
+    const t = villager.trades?.[i];
+    if (!t || t.uses >= t.max) return false;
+    const inv = this.inventory.main;
+    if (!t.give.every((g) => inv.count(g.item) >= g.count)) return false;
+    for (const g of t.give) inv.remove(g.item, g.count);
+    const got = { item: t.get.item, count: t.get.count, damage: 0 };
+    if (t.get.ench) got.ench = { ...t.get.ench };
+    const left = this.inventory.give(got);
+    if (left) this.throwStack({ ...got, count: left });
+    t.uses++;
+    // Out of stock: the villager restocks after a while.
+    if (t.uses >= t.max && !(villager.restock > 0)) villager.restock = 2400 + Math.floor(Math.random() * 2400);
+    villager.trading = 40;
+    this.spawnXp([villager.pos[0], villager.pos[1] + 1, villager.pos[2]], 3 + Math.floor(Math.random() * 4));
+    this.sound('villager_yes', villager.pos);
+    this.advancements.event('trade');
+    this.advancements.check(this.inventory);
+    this.hud?.refreshHotbar();
+    return true;
+  }
+
   // Tamed wolves go after whatever you fight, or whatever hurts you (never creepers or each other).
   rallyWolves(foe) {
     if (!foe || foe.kind !== 'mob' || foe.type === 'creeper' || foe.tamed || foe.type === 'dragon') return;
@@ -1918,6 +1952,7 @@ export class Game {
   modelFor(e) {
     if (e.type === 'ghast') return e.chargeTime > 10 ? 'ghast_fire' : 'ghast';
     if (e.type === 'wolf') return e.tamed ? 'wolf_tame' : e.angry ? 'wolf_angry' : 'wolf';
+    if (e.type === 'villager') return `villager_${e.profession ?? 'farmer'}`;
     return MOBS[e.type].model;
   }
 

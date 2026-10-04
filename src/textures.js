@@ -406,6 +406,13 @@ const GEN = {
   gold_ore(t, r) { ore(t, r, [246, 212, 64], 4); },
   diamond_ore(t, r) { ore(t, r, [92, 226, 218], 4); },
   lapis_ore(t, r) { ore(t, r, [34, 76, 196], 5); },
+  emerald_ore(t, r) { ore(t, r, [40, 200, 90], 3); },
+  emerald_block(t, r) {
+    noiseFill(t, r, [60, 210, 110], 0.06);
+    for (let k = 0; k < TILE; k++) { put(t, k, 0, [140, 240, 170]); put(t, 0, k, [140, 240, 170]); put(t, k, 15, [20, 120, 60]); put(t, 15, k, [20, 120, 60]); }
+    rect(t, 4, 4, 11, 11, [30, 160, 80], r, 0.06);
+    rect(t, 6, 6, 9, 9, [120, 240, 160], r, 0.04);
+  },
   lapis_block(t, r) {
     noiseFill(t, r, [30, 64, 170], 0.08);
     for (let i = 0; i < 18; i++) put(t, (r() * TILE) | 0, (r() * TILE) | 0, mul([70, 110, 220], jitter(r, 0.1)));

@@ -28,6 +28,7 @@ export const ADVANCEMENTS = [
   // Side quests: shown on the advancements screen but never the suggested next goal.
   { id: 'tame', title: 'Best Friends Forever', about: 'Tame a wolf with bones', event: 'tame', optional: true },
   { id: 'return_to_sender', title: 'Return to Sender', about: 'Destroy a Ghast with its own fireball', event: 'return_to_sender', optional: true },
+  { id: 'trade', title: 'What a Deal!', about: 'Trade with a villager (find a village with /locate village)', event: 'trade', optional: true },
   { id: 'slime', title: 'Squishy', about: 'Collect a slimeball from a small slime deep underground', has: ['slimeball'], optional: true },
 ];
 

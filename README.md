@@ -57,6 +57,9 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Biomes: plains, forest, desert, snowy tundra, mountains, snowy peaks, beaches and oceans.
   - Underground: caves and caverns, ore veins, lava pools in the deepest caves, and dungeons with monster spawners and loot chests.
   - Strongholds with end portal rooms.
+  - Villages in plains, deserts and snowy tundra. Each has a well, gravel roads, houses with doors and beds, a library, a blacksmith with a loot chest, wheat farms and lamp posts. Find the nearest one with `/locate village`.
+- **Villagers and trading.** Farmers, librarians, clerics, blacksmiths and butchers buy raw materials for emeralds and sell food, books, glass, eyes of ender, and enchanted iron and diamond gear. Right-click a villager to trade. Offers run out and restock after a while, and every trade earns you experience. Emeralds are also mined as single ores under mountains.
+- **Iron golems** guard each village and go after monsters, or after you if you hurt a villager. Zombies hunt villagers, who run from them.
 - **Water and lava flow** and settle like Minecraft's fluids:
   - Two water sources make a third.
   - Water poured on still lava makes obsidian; on flowing lava it makes cobblestone.
@@ -82,7 +85,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - You get there by building a 4×5 obsidian frame and lighting it with flint and steel. Distances there are scaled 8 to 1, and the game builds a portal for you on the far side if there isn't one.
   - Inside: netherrack, soul sand, glowstone, lava seas and nether fortresses.
 - **The End.** It has the end stone island, obsidian pillars topped with end crystals that heal the dragon, the dragon fight, the exit portal, the dragon egg and the credits.
-- **Advancements.** 27 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
+- **Advancements.** 28 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
 
 ### Engine
 
@@ -132,7 +135,7 @@ Commands work in worlds created with cheats on. Coordinates accept `~` for "rela
 | `/setblock`, `/fill` | Place one block, or fill a box |
 | `/clear`, `/heal`, `/spawnpoint` | Inventory, health and spawn helpers |
 | `/gamerule <rule> [true\|false]` | Change `keepInventory`, `doDaylightCycle`, `doWeatherCycle`, `doMobSpawning`, `mobGriefing`, `doFireTick` or `naturalRegeneration` |
-| `/locate <stronghold\|fortress>` | Find the nearest structure |
+| `/locate <stronghold\|fortress\|village>` | Find the nearest structure |
 | `/seed`, `/say`, `/help` | Show the seed, say something, list the commands |
 
 ## How it works
@@ -150,6 +153,7 @@ src/drops.js          breaking times, harvest rules, block drops and ore experie
 src/enchantments.js   enchantments, the enchanting table's offers and the experience curve
 src/terrain.js        Overworld generation; src/nether.js and src/end.js for the other dimensions
 src/structures.js     trees, dungeons, strongholds and nether fortresses
+src/village.js        village layout and buildings; src/villagers.js holds professions and trades
 src/world.js          one dimension's loaded chunks, edits, block entities and parked entities
 src/blockupdates.js   neighbour updates, fluids, falling blocks, random ticks (crops, saplings, grass)
 src/physics.js        swept AABB collision shared by the player and entities

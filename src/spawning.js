@@ -189,6 +189,15 @@ export function populateChunk(game, world, chunk) {
       world.blockEntities.set(key, { type: 'chest', slots: generateLoot(table, Math.floor(hash3(x, y, z, world.seed) * 4294967296)) });
     }
   }
+  if (world.dimension === 'overworld') {
+    for (const r of world.terrain.residentsIn?.(chunk.cx, chunk.cz) ?? []) {
+      const m = createMob(r.type, r.x, r.y, r.z);
+      m.home = r.village;
+      m.persistent = true;
+      if (r.profession) m.profession = r.profession;
+      game.entities.add(m);
+    }
+  }
   if (world.dimension !== 'overworld' || Math.random() > 0.12) return;
   const biome = world.terrain.columnInfo?.(x0 + 8, z0 + 8).biome;
   const wolves = biome === BIOME.FOREST || biome === BIOME.TUNDRA ? 2 : 0;

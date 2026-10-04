@@ -543,3 +543,33 @@ test('ripe stems set fruit beside them', () => {
   assert.equal(fruit, 1, 'exactly one pumpkin');
   assert.equal(w.getBlock(4, 11, 4), B.PUMPKIN_STEM_7, 'the stem stays');
 });
+
+test('villages are laid out deterministically, with residents and real trades', async () => {
+  const { createTerrain } = await import('../src/terrain.js');
+  const { tradesFor, PROFESSIONS } = await import('../src/villagers.js');
+  const a = createTerrain(99).locate('village', 0, 0);
+  const b = createTerrain(99).locate('village', 0, 0);
+  assert.deepEqual(a, b);
+  const t = createTerrain(99);
+  // The well sits at the centre: water with a cobblestone ring.
+  const cx = Math.floor(a.x / 16);
+  const cz = Math.floor(a.z / 16);
+  const data = t.generateChunk(cx, cz);
+  const at = (x, y, z) => data[((y * 16) + (z - cz * 16)) * 16 + (x - cx * 16)];
+  assert.equal(at(a.x, a.y, a.z), B.WATER);
+  assert.equal(at(a.x + 1, a.y + 1, a.z), B.COBBLESTONE);
+  let residents = [];
+  for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) residents = residents.concat(t.residentsIn(cx + dx, cz + dz));
+  assert.ok(residents.some((r) => r.type === 'iron_golem'));
+  assert.ok(residents.filter((r) => r.type === 'villager').length >= 2);
+  for (const prof of Object.keys(PROFESSIONS)) {
+    const trades = tradesFor(prof, 42);
+    assert.deepEqual(trades, tradesFor(prof, 42));
+    assert.ok(trades.length >= 4);
+    for (const tr of trades) {
+      for (const g of tr.give) assert.ok(ITEMS[g.item], `${prof} wants unknown ${g.item}`);
+      assert.ok(ITEMS[tr.get.item], `${prof} sells unknown ${tr.get.item}`);
+      assert.ok(tr.give.some((g) => g.item === 'emerald') || tr.get.item === 'emerald');
+    }
+  }
+});

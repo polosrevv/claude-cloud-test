@@ -28,7 +28,7 @@ export const COMMANDS = {
   spawnpoint: { usage: '/spawnpoint', about: 'Respawn where you stand' },
   seed: { usage: '/seed', about: 'Show the world seed' },
   gamerule: { usage: '/gamerule <rule> [true|false]', about: 'keepInventory, doDaylightCycle, doWeatherCycle, doMobSpawning, mobGriefing, naturalRegeneration' },
-  locate: { usage: '/locate <stronghold|fortress>', about: 'Find the nearest structure' },
+  locate: { usage: '/locate <stronghold|fortress|village>', about: 'Find the nearest structure' },
   heal: { usage: '/heal', about: 'Restore health and hunger' },
   say: { usage: '/say <message>', about: 'Say something in chat' },
 };
@@ -245,7 +245,7 @@ export function runCommand(game, text) {
     case 'locate': {
       const kind = (args[0] === 'structure' ? args[1] : args[0])?.toLowerCase().replace(/^minecraft:/, '');
       const found = game.world.terrain.locate?.(kind, p.pos[0], p.pos[2]);
-      if (!found) { err(kind === 'fortress' ? 'Fortresses are in the Nether' : kind === 'stronghold' ? 'Strongholds are in the Overworld' : `Usage: ${COMMANDS.locate.usage}`); break; }
+      if (!found) { err(kind === 'fortress' ? 'Fortresses are in the Nether' : kind === 'stronghold' || kind === 'village' ? `${kind === 'village' ? 'Villages' : 'Strongholds'} are in the Overworld` : `Usage: ${COMMANDS.locate.usage}`); break; }
       say(`The nearest ${kind} is at ${found.x}, ~, ${found.z} (${Math.round(found.distance)} blocks away)`);
       break;
     }
@@ -282,7 +282,7 @@ export function complete(text) {
   else if (cmd === 'time') options = parts.length === 2 ? ['set', 'add', 'query'] : Object.keys(TIMES);
   else if (cmd === 'gamerule' && parts.length === 2) options = GAMERULES;
   else if (cmd === 'gamerule' && parts.length === 3) options = ['true', 'false'];
-  else if (cmd === 'locate') options = ['stronghold', 'fortress'];
+  else if (cmd === 'locate') options = ['stronghold', 'fortress', 'village'];
   else if (cmd === 'weather' && parts.length === 2) options = ['clear', 'rain', 'thunder'];
   else if (cmd === 'enchant' && parts.length === 2) options = Object.keys(ENCHANTMENTS);
   else if (cmd === 'xp' && parts.length === 2) options = ['add', 'set', 'query'];
