@@ -187,7 +187,7 @@ export class Hud {
 
   advancement(a) {
     const el = $('advancement');
-    const item = a.has?.[0] ?? { kill: 'iron_sword', enchant: 'enchanting_table', tame: 'bone', return_to_sender: 'ghast_tear', trade: 'emerald', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
+    const item = a.has?.[0] ?? { kill: 'iron_sword', enchant: 'enchanting_table', tame: 'bone', return_to_sender: 'ghast_tear', trade: 'emerald', fish: 'cod', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
     $('adv-icon').src = this.icon(ITEMS[item] ? item : 'grass');
     $('adv-title').textContent = a.title;
     el.classList.remove('out');

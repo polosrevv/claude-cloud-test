@@ -35,7 +35,9 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Bows: Power, Punch, Flame and Infinity.
   - Armour: Protection, Fire Protection, Feather Falling, Respiration and Aqua Affinity.
   - Enchanted items shimmer, and their tooltips list what they carry.
-- **Food.** You can eat bread, apples, golden apples, raw or cooked meat, melon slices, pumpkin pie and mushroom stew, and drink milk. Rotten flesh and raw chicken might make you hungry. Cake is placed as a block and eaten a slice at a time.
+- **Fishing.** Cast a rod into water and reel in when the bobber dips. You'll mostly catch cod and salmon, sometimes junk, and now and then an enchanted bow or rod. Fish bite faster in the rain.
+- **Boats.** Put one on the water, right-click to get in, row with W and S, turn with A and D, and sneak to get out. Punch a boat to break it back into an item.
+- **Food.** You can eat bread, apples, golden apples, raw or cooked meat and fish, melon slices, pumpkin pie and mushroom stew, and drink milk. Rotten flesh and raw chicken might make you hungry. Cake is placed as a block and eaten a slice at a time.
 
 ### Mobs
 
@@ -85,7 +87,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - You get there by building a 4×5 obsidian frame and lighting it with flint and steel. Distances there are scaled 8 to 1, and the game builds a portal for you on the far side if there isn't one.
   - Inside: netherrack, soul sand, glowstone, lava seas and nether fortresses.
 - **The End.** It has the end stone island, obsidian pillars topped with end crystals that heal the dragon, the dragon fight, the exit portal, the dragon egg and the credits.
-- **Advancements.** 28 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
+- **Advancements.** 29 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
 
 ### Engine
 
@@ -158,7 +160,7 @@ src/world.js          one dimension's loaded chunks, edits, block entities and p
 src/blockupdates.js   neighbour updates, fluids, falling blocks, random ticks (crops, saplings, grass)
 src/physics.js        swept AABB collision shared by the player and entities
 src/player.js         player movement: walking, sprinting, sneaking, swimming, climbing, flying
-src/entities.js       entity manager: items, arrows, fireballs, TNT, end crystals
+src/entities.js       entity manager: items, arrows, fireballs, TNT, end crystals, XP orbs, boats, bobbers
 src/mobs.js           mob definitions, AI and A* pathfinding; src/spawning.js decides where they appear
 src/dragon.js         the Ender Dragon fight
 src/portals.js        nether portal lighting and linking, end portal frames

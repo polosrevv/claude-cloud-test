@@ -573,3 +573,31 @@ test('villages are laid out deterministically, with residents and real trades', 
     }
   }
 });
+
+test('boats float and row; bobbers bob until a fish bites', async () => {
+  const { EntityManager, boat, bobber } = await import('../src/entities.js');
+  const w = flatWorld(1, 10);
+  // A pond: water two deep from y = 9 to 10.
+  for (let z = -8; z <= 8; z++) for (let x = -8; x <= 8; x++) { w.setBlock(x, 10, z, B.WATER); w.setBlock(x, 9, z, B.WATER); }
+  const game = {
+    world: w, tickCount: 0, rideInput: null, particles: { burst() {} }, sound() {},
+    player: { pos: [0, 12, 0], dead: false }, heldItem: () => 'fishing_rod', bobber: null,
+  };
+  const ents = new EntityManager(game);
+  const b = ents.add(boat(0.5, 12, 0.5, 0));
+  for (let i = 0; i < 100; i++) { game.tickCount++; ents.tick(); }
+  assert.ok(b.pos[1] > 10.3 && b.pos[1] < 11, `floats at ${b.pos[1]}`);
+  // Row north (yaw 0 looks toward -z).
+  b.rider = true;
+  game.rideInput = { forward: 1, strafe: 0 };
+  const z0 = b.pos[2];
+  for (let i = 0; i < 20; i++) { game.tickCount++; ents.tick(); }
+  assert.ok(z0 - b.pos[2] > 2, `rowed ${z0 - b.pos[2]}`);
+  // A bobber settles on the water and a fish bites within half a minute.
+  const f = ents.add(bobber(3.5, 12, 3.5, [0, 0, 0]));
+  game.bobber = f;
+  let bit = false;
+  for (let i = 0; i < 700 && !bit; i++) { game.tickCount++; ents.tick(); bit = f.bite > 0; }
+  assert.ok(f.inWater);
+  assert.ok(bit, 'a fish bit');
+});

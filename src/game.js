@@ -10,7 +10,7 @@ import { World, posKey } from './world.js';
 import { END_SPAWN } from './end.js';
 import { Player } from './player.js';
 import { PlayerInventory, newFurnace, tickFurnace } from './inventory.js';
-import { EntityManager, itemEntity, xpOrb, projectile, primedTnt, serializeEntity, deserializeEntity } from './entities.js';
+import { EntityManager, itemEntity, xpOrb, projectile, primedTnt, boat, bobber, serializeEntity, deserializeEntity } from './entities.js';
 import { MOBS, hurtMob, createMob } from './mobs.js';
 import { tradesFor } from './villagers.js';
 import { spawnTick, spawnerTick, populateChunk } from './spawning.js';
@@ -18,7 +18,7 @@ import { BlockUpdater } from './blockupdates.js';
 import { DragonFight } from './dragon.js';
 import { tryLightPortal, arriveThroughPortal, checkEndPortal } from './portals.js';
 import { breakSeconds, dropsFor, toolOf, blockXp } from './drops.js';
-import { level as enchLevel, enchantOffers, addPoints, splitXp } from './enchantments.js';
+import { level as enchLevel, enchantOffers, addPoints, splitXp, rollEnchantments } from './enchantments.js';
 import { raycast } from './raycast.js';
 import { skyAt } from './sky.js';
 import { Particles } from './particles.js';
@@ -125,6 +125,8 @@ export class Game {
     }
     this.worldSpawn ??= this.worlds.overworld?.terrain.findSpawn() ?? { x: 0.5, y: 80, z: 0.5 };
     this.dragonFight = new DragonFight(this, this.dragonState);
+    p.vehicle = null;
+    this.bobber = null;
     this.streamer.setWorld(this.world);
     this.playerReady = false;
     this.mining = null;
@@ -243,7 +245,11 @@ export class Game {
         this.hud?.loading(null);
       }
       const move = this.state === 'playing' && !p.dead ? input : { forward: 0, strafe: 0, jump: false, sneak: false, sprint: false };
-      if (!p.dead && this.state !== 'sleeping') {
+      if (p.vehicle && (move.sneak || p.vehicle.removed || p.dead)) this.dismount();
+      this.rideInput = move;
+      if (p.vehicle) {
+        p.fallDistance = 0;
+      } else if (!p.dead && this.state !== 'sleeping') {
         const ev = p.update(dt, move, this.world);
         if (ev.enteredWater) {
           this.sound('splash', p.pos);
@@ -256,6 +262,16 @@ export class Game {
       while (this.accumulator >= TICK) {
         this.accumulator -= TICK;
         this.tick();
+      }
+      if (p.vehicle) {
+        // Sit in the boat: follow its interpolated position.
+        const b = p.vehicle;
+        const a = this.accumulator / TICK;
+        p.pos = [b.prev[0] + (b.pos[0] - b.prev[0]) * a, b.prev[1] + (b.pos[1] - b.prev[1]) * a - 0.25, b.prev[2] + (b.pos[2] - b.prev[2]) * a];
+        p.vel = [0, 0, 0];
+        p.onGround = true;
+        p.inWater = false;
+        p.headInWater = false;
       }
       if (this.state === 'playing' && !p.dead) this.updateInteraction(dt);
     }
@@ -521,6 +537,7 @@ export class Game {
   killPlayer(cause, source = null) {
     const p = this.player;
     if (p.dead) return;
+    if (p.vehicle) this.dismount();
     if (cause === 'command' && !p.vulnerable) {
       p.mode = 'survival';
     }
@@ -582,6 +599,8 @@ export class Game {
 
   switchWorld(dim) {
     if (this.world.dimension === dim) return;
+    if (this.player.vehicle) this.dismount();
+    this.bobber = null;
     this.world = this.loadWorld(dim);
     this.streamer.setWorld(this.world);
     this.particles.list = [];
@@ -758,7 +777,7 @@ export class Game {
     const look = p.look;
     const reach = p.creative ? 5 : 4.5;
     const block = raycast(this.world, eye, look, reach);
-    const ent = this.entities.raycast(eye, look, p.creative ? 5 : 3.5, (e) => (e.kind === 'mob' && e.deathTime === 0) || e.kind === 'crystal' || e.type === 'ghast_fireball');
+    const ent = this.entities.raycast(eye, look, p.creative ? 5 : 3.5, (e) => (e.kind === 'mob' && e.deathTime === 0) || e.kind === 'crystal' || e.type === 'ghast_fireball' || (e.kind === 'boat' && e !== p.vehicle));
     if (ent && (!block || ent.distance < block.distance)) this.target = { entity: ent.entity, distance: ent.distance };
     else this.target = block;
   }
@@ -880,6 +899,18 @@ export class Game {
     if (p.spectator) return;
     if (e.kind === 'crystal') {
       this.dragonFight.crystalDestroyed(e);
+      return;
+    }
+    if (e.kind === 'boat') {
+      // A few punches break a boat back into an item.
+      e.damage += p.creative ? 10 : 1;
+      e.hurtTime = 10;
+      playBlockSound('wood', 'step');
+      if (e.damage >= 3) {
+        e.removed = true;
+        playBlockSound('wood', 'break');
+        if (p.vulnerable) this.dropStacks([e.pos[0], e.pos[1] + 0.4, e.pos[2]], [{ item: 'boat', count: 1 }]);
+      }
       return;
     }
     if (e.type === 'ghast_fireball') {
@@ -1058,6 +1089,7 @@ export class Game {
   }
 
   interactEntity(e, held) {
+    if (e.kind === 'boat') return this.mount(e);
     if (e.kind !== 'mob') return;
     const def = e.def;
     if (e.type === 'wolf') return this.interactWolf(e, held);
@@ -1168,6 +1200,28 @@ export class Game {
       return true;
     }
     switch (item.use) {
+      case 'boat': {
+        // Put the boat on the water (or ground) you're looking at.
+        const hit = raycast(world, p.eye, p.look, 5, { fluids: true });
+        if (!hit) return false;
+        const water = FLUID[hit.id] === 1;
+        const y = water ? hit.y + 0.6 : hit.y + 1;
+        if (!water && hit.normal[1] <= 0) return false;
+        this.entities.add(boat(hit.x + 0.5, y, hit.z + 0.5, p.yaw));
+        playBlockSound('wood', 'place');
+        this.consumeHeld();
+        return true;
+      }
+      case 'fish':
+        if (this.bobber && !this.bobber.removed) this.reelIn();
+        else {
+          const look = p.look;
+          const e = bobber(p.eye[0] + look[0] * 0.5, p.eye[1] + look[1] * 0.5 - 0.1, p.eye[2] + look[2] * 0.5, [look[0] * 13, look[1] * 13 + 3, look[2] * 13]);
+          this.bobber = e;
+          this.entities.add(e);
+          this.sound('bow', p.pos, 0.5);
+        }
+        return true;
       case 'throw_egg': {
         const look = p.look;
         this.entities.add(projectile('egg', p.eye[0], p.eye[1] - 0.1, p.eye[2], look.map((v) => v * 22), 'player'));
@@ -1815,6 +1869,61 @@ export class Game {
     return true;
   }
 
+  // ---------------------------------------------------------------- boats and fishing
+
+  mount(b) {
+    const p = this.player;
+    if (p.vehicle || b.rider) return;
+    p.vehicle = b;
+    b.rider = true;
+    p.flying = false;
+    this.hud?.toast('Sneak (Shift) to leave the boat');
+  }
+
+  dismount() {
+    const p = this.player;
+    const b = p.vehicle;
+    if (!b) return;
+    p.vehicle = null;
+    b.rider = false;
+    p.teleport(b.pos[0], b.pos[1] + 0.7, b.pos[2]);
+  }
+
+  // Reel the line in: on a bite you land a catch, otherwise you just get the bobber back.
+  reelIn() {
+    const p = this.player;
+    const e = this.bobber;
+    this.bobber = null;
+    e.removed = true;
+    if (!(e.bite > 0)) {
+      this.damageHeld(e.onGround ? 2 : 1);
+      return;
+    }
+    const roll = Math.random();
+    let catchStack;
+    if (roll < 0.85) {
+      catchStack = { item: Math.random() < 0.7 ? 'cod' : 'salmon', count: 1 };
+    } else if (roll < 0.95) {
+      const junk = ['stick', 'string', 'bowl', 'bone', 'rotten_flesh', 'ink_sac', 'leather', 'leather_boots'];
+      const item = junk[Math.floor(Math.random() * junk.length)];
+      catchStack = { item, count: 1, damage: item === 'leather_boots' ? Math.floor(Math.random() * 40) : 0 };
+    } else {
+      const item = Math.random() < 0.5 ? 'bow' : 'fishing_rod';
+      catchStack = { item, count: 1 };
+      const ench = rollEnchantments(item, 30, Math.floor(Math.random() * 1e9));
+      if (ench.length) catchStack.ench = Object.fromEntries(ench.map((x) => [x.key, x.level]));
+    }
+    // The catch flies out of the water toward you.
+    const d = [p.pos[0] - e.pos[0], p.pos[1] + 1 - e.pos[1], p.pos[2] - e.pos[2]];
+    const len = Math.hypot(...d) || 1;
+    this.entities.add(itemEntity(catchStack, e.pos[0], e.pos[1] + 0.3, e.pos[2], [d[0] / len * Math.min(12, len * 1.6), 5 + len * 0.3, d[2] / len * Math.min(12, len * 1.6)], 0));
+    this.spawnXp([p.pos[0], p.pos[1] + 0.5, p.pos[2]], 1 + Math.floor(Math.random() * 6));
+    this.particles.burst([e.pos[0], e.pos[1] + 0.2, e.pos[2]], 'splash', 10, 0.3);
+    this.sound('splash', e.pos);
+    this.damageHeld(1);
+    this.advancements.event('fish');
+  }
+
   // Tamed wolves go after whatever you fight, or whatever hurts you (never creepers or each other).
   rallyWolves(foe) {
     if (!foe || foe.kind !== 'mob' || foe.type === 'creeper' || foe.tamed || foe.type === 'dragon') return;
@@ -1984,7 +2093,7 @@ export class Game {
     let sky = skyAt(this.world.dimension === 'overworld' ? this.timeOfDay : 0.75);
     if (this.world.dimension === 'overworld') sky = this.weatherSky(sky);
     this.skyState = sky;
-    this.weatherLayers ??= { rain: textureIndex('weather_rain'), snow: textureIndex('weather_snow'), white: textureIndex('particle_white'), orb: textureIndex('xp_orb') };
+    this.weatherLayers ??= { rain: textureIndex('weather_rain'), snow: textureIndex('weather_snow'), white: textureIndex('particle_white'), orb: textureIndex('xp_orb'), bobber: textureIndex('bobber') };
     const dim = this.world.dimension;
     const style = DIM_STYLE[dim];
     const alpha = this.accumulator / TICK;
@@ -2019,6 +2128,7 @@ export class Game {
     const items = [];
     const beams = [];
     const orbs = [];
+    const lines = [];
     for (const e of this.entities.list) {
       if (e.removed) continue;
       const pos = [e.prev[0] + (e.pos[0] - e.prev[0]) * alpha, e.prev[1] + (e.pos[1] - e.prev[1]) * alpha, e.prev[2] + (e.pos[2] - e.prev[2]) * alpha];
@@ -2050,6 +2160,17 @@ export class Game {
           t: this.tickCount + alpha,
         });
         if (e.type === 'dragon' && e.healer) beams.push([[e.healer.pos[0], e.healer.pos[1] + 1, e.healer.pos[2]], [pos[0], pos[1] + 2, pos[2]]]);
+      } else if (e.kind === 'boat') {
+        const wobble = e.hurtTime > 0 ? Math.sin(e.hurtTime * 1.5) * 0.15 * (e.hurtTime / 10) : 0;
+        const byaw = e.prevYaw + (e.yaw - e.prevYaw) * alpha;
+        entities.push({ model: 'boat', pos, yaw: byaw, roll: wobble, scale: 1, light: this.lightColor(pos[0], pos[1] + 0.5, pos[2]), state: e, t: 0 });
+      } else if (e.kind === 'bobber') {
+        orbs.push({ pos: [pos[0], pos[1] + 0.12, pos[2]], size: 0.13, layer: this.weatherLayers.bobber, u0: 0, v0: 0, uw: 1, color: this.lightColor(pos[0], pos[1], pos[2]) });
+        // The line runs from the rod's tip (a little right of and below the eye) to the bobber.
+        const right = [Math.cos(yaw), 0, -Math.sin(yaw)];
+        const look = p.look;
+        const tip = [cam[0] + look[0] * 0.9 + right[0] * 0.35, cam[1] - 0.25 + look[1] * 0.9, cam[2] + look[2] * 0.9 + right[2] * 0.35];
+        lines.push([tip, [pos[0], pos[1] + 0.2, pos[2]]]);
       } else if (e.kind === 'crystal') {
         entities.push({ model: 'crystal', pos, yaw: 0, scale: 2, light: [1, 1, 1], state: e, t: this.tickCount + alpha });
       } else if (e.kind === 'item') {
@@ -2114,6 +2235,7 @@ export class Game {
       items,
       beams,
       weather,
+      lines,
       hand,
     };
   }

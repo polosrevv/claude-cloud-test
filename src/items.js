@@ -98,6 +98,8 @@ for (const [mat, a] of Object.entries(ARMOR)) {
   });
 }
 add('bow', { name: 'Bow', maxStack: 1, tab: 'combat', use: 'bow', durability: 384, fuel: 1 });
+add('fishing_rod', { name: 'Fishing Rod', maxStack: 1, tab: 'tools', use: 'fish', durability: 64, fuel: 1 });
+add('boat', { name: 'Boat', maxStack: 1, tab: 'tools', use: 'boat', fuel: 3 });
 add('arrow', { name: 'Arrow', tab: 'combat' });
 add('shears', { name: 'Shears', maxStack: 1, tab: 'tools', tool: { type: 'shears', tier: 0, speed: 2, durability: 238, damage: 1 } });
 add('flint_and_steel', { name: 'Flint and Steel', maxStack: 1, tab: 'tools', use: 'ignite', durability: 64 });
@@ -120,6 +122,10 @@ food('mutton', 'Raw Mutton', 2, 1.2);
 food('cooked_mutton', 'Cooked Mutton', 6, 9.6);
 food('rotten_flesh', 'Rotten Flesh', 4, 0.8, { poison: 0.8 });
 food('melon_slice', 'Melon Slice', 2, 1.2);
+food('cod', 'Raw Cod', 2, 0.4);
+food('cooked_cod', 'Cooked Cod', 5, 6);
+food('salmon', 'Raw Salmon', 2, 0.4);
+food('cooked_salmon', 'Cooked Salmon', 6, 9.6);
 food('pumpkin_pie', 'Pumpkin Pie', 8, 4.8);
 add('mushroom_stew', { name: 'Mushroom Stew', maxStack: 1, tab: 'food', food: { hunger: 6, saturation: 7.2, returns: 'bowl' } });
 add('milk_bucket', { remainder: 'bucket', name: 'Milk Bucket', maxStack: 1, tab: 'food', food: { hunger: 0, saturation: 0, always: true, drink: true, cures: true, returns: 'bucket' } });

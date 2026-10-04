@@ -246,6 +246,13 @@ const SKINS = {
     paintBox(img, 42, 23, 3, 8, 3, () => vary(r, iron, 0.05));
     paintBox(img, 0, 41, 9, 5, 6, () => vary(r, [170, 164, 156], 0.05));
   },
+  boat(img, r) {
+    const plank = (x, y) => vary(r, (y % 4 === 3) ? [120, 88, 50] : [164, 124, 74], 0.06);
+    paintBox(img, 0, 0, 10, 2, 14, (face, x, y) => plank(x, y + (face === 'top' || face === 'bottom' ? x : 0)));
+    paintBox(img, 0, 16, 1, 3, 14, (face, x, y) => plank(x, y));
+    paintBox(img, 0, 34, 8, 3, 1, (face, x, y) => plank(x, y));
+    paintBox(img, 32, 34, 7, 1, 1, (face, x) => vary(r, x > 4 ? [150, 110, 64] : [110, 80, 46], 0.05));
+  },
   crystal(img, r) {
     paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => (x === 0 || y === 0 || x === 7 || y === 7 ? [240, 200, 255, 230] : [220, 120, 240, 120]));
     paintBox(img, 32, 0, 8, 8, 8, () => vary(r, [255, 170, 240], 0.15));

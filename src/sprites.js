@@ -208,6 +208,13 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
     disk(t, r, 10.5, 6.5, 2.5, 1.8, fat, 0.04);
     rim(t);
   };
+  const fish = (t, r, body, fin) => {
+    clear(t);
+    disk(t, r, 7.5, 8, 5.2, 3, body, 0.06);
+    for (let k = 0; k < 4; k++) { put(t, 12 + k, 8 - k, fin); put(t, 12 + k, 8 + k, fin); }
+    put(t, 4, 7, [20, 20, 20]);
+    rim(t, 0.6);
+  };
   const drumstick = (t, r, c) => {
     clear(t);
     disk(t, r, 9, 7, 4.6, 4.6, c);
@@ -458,6 +465,27 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
       for (const [x, y] of [[3, 13], [2, 12], [3, 3], [2, 2]]) put(t, x, y, [150, 40, 40]);
       rim(t, 0.8);
     },
+    item_fishing_rod(t, r) {
+      clear(t);
+      line(t, r, 2, 14, 12, 2, [124, 88, 44], 1);
+      for (let y = 3; y < 13; y++) put(t, 13, y, [220, 220, 220]);
+      put(t, 13, 13, [140, 140, 150]); put(t, 12, 13, [140, 140, 150]);
+    },
+    item_boat(t, r) {
+      clear(t);
+      art(t, r, ['', '', '', '', '', '',
+        'o..............o',
+        'o#............#o',
+        'o##..........##o',
+        '.o############o.',
+        '..o##########o..',
+        '...oooooooooo...',
+      ], { '#': [160, 120, 70], o: [96, 70, 40] });
+    },
+    item_cod(t, r) { fish(t, r, [196, 170, 130], [150, 120, 90]); },
+    item_cooked_cod(t, r) { fish(t, r, [214, 186, 150], [170, 130, 90]); },
+    item_salmon(t, r) { fish(t, r, [176, 60, 50], [110, 120, 130]); },
+    item_cooked_salmon(t, r) { fish(t, r, [214, 120, 80], [150, 90, 60]); },
     item_bow(t, r) {
       clear(t);
       for (let i = 0; i <= 12; i++) {

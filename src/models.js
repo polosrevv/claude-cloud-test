@@ -278,6 +278,27 @@ export const MODEL_DEFS = {
       out.leftArm = { rot: [s * 0.6 - lift, 0, 0] };
     },
   },
+  boat: {
+    skin: 'boat',
+    parts: [
+      { name: 'hull', pivot: [0, 0, 0], cubes: [
+        cube([-10, 0, -14], [20, 3, 28], [0, 0], { tex: [10, 2, 14] }),
+        cube([-10, 3, -14], [2, 6, 28], [0, 16], { tex: [1, 3, 14] }),
+        cube([8, 3, -14], [2, 6, 28], [0, 16], { tex: [1, 3, 14] }),
+        cube([-8, 3, -14], [16, 6, 2], [0, 34], { tex: [8, 3, 1] }),
+        cube([-8, 3, 12], [16, 6, 2], [0, 34], { tex: [8, 3, 1] }),
+      ] },
+      { name: 'rightOar', pivot: [10, 7, 0], cubes: [cube([0, -1, -1], [14, 2, 2], [32, 34], { tex: [7, 1, 1] })] },
+      { name: 'leftOar', pivot: [-10, 7, 0], cubes: [cube([-14, -1, -1], [14, 2, 2], [32, 34], { tex: [7, 1, 1] })] },
+    ],
+    anim: (e, t, out) => {
+      // The oars dip while it's being rowed.
+      const rowing = e.rider && Math.hypot(e.vel[0], e.vel[2]) > 0.5;
+      const a = rowing ? Math.sin(e.age * 0.4) * 0.5 : 0.2;
+      out.rightOar = { rot: [0, a, -0.35] };
+      out.leftOar = { rot: [0, -a, 0.35] };
+    },
+  },
   crystal: {
     skin: 'crystal',
     parts: [

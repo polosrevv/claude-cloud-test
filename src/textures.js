@@ -888,6 +888,15 @@ const GEN = {
     }
   },
   particle_white(t) { for (let i = 0; i < t.length; i++) t[i] = 255; },
+  bobber(t) {
+    clear(t);
+    for (let y = 4; y < 12; y++) {
+      for (let x = 4; x < 12; x++) {
+        if (Math.hypot(x - 7.5, y - 7.5) < 3.8) put(t, x, y, y < 8 ? [220, 40, 40] : [240, 240, 240]);
+      }
+    }
+    put(t, 7, 3, [60, 60, 60]); put(t, 8, 3, [60, 60, 60]);
+  },
   xp_orb(t, r) {
     clear(t);
     for (let y = 0; y < TILE; y++) {

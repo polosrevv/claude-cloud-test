@@ -60,6 +60,28 @@ export function xpOrb(value, x, y, z) {
   return e;
 }
 
+// A boat: floats on water, carries the player, breaks back into an item.
+export function boat(x, y, z, yaw) {
+  const e = new Entity('boat', 'boat', x, y, z);
+  e.hw = 0.7;
+  e.h = 0.6;
+  e.yaw = e.prevYaw = e.bodyYaw = e.prevBodyYaw = yaw;
+  e.damage = 0;
+  e.hurtTime = 0;
+  return e;
+}
+
+// A fishing bobber cast from the player's rod.
+export function bobber(x, y, z, vel) {
+  const e = new Entity('bobber', 'bobber', x, y, z);
+  e.vel = [...vel];
+  e.hw = 0.125;
+  e.h = 0.25;
+  e.wait = 0;
+  e.bite = 0;
+  return e;
+}
+
 export function projectile(type, x, y, z, vel, owner) {
   const e = new Entity('projectile', type, x, y, z);
   e.vel = [...vel];
@@ -182,6 +204,8 @@ export class EntityManager {
       switch (e.kind) {
         case 'item': this.tickItem(e); break;
         case 'xp': this.tickXp(e); break;
+        case 'boat': this.tickBoat(e); break;
+        case 'bobber': this.tickBobber(e); break;
         case 'projectile': this.tickProjectile(e); break;
         case 'tnt': this.tickTnt(e); break;
         case 'mob': tickMob(e, game); break;
@@ -269,6 +293,98 @@ export class EntityManager {
       e.removed = true;
       game.addXp(e.value);
     }
+  }
+
+  tickBoat(e) {
+    const game = this.game;
+    const world = game.world;
+    if (e.hurtTime > 0) e.hurtTime--;
+    const x = Math.floor(e.pos[0]);
+    const z = Math.floor(e.pos[2]);
+    const at = (dy) => world.getBlock(x, Math.floor(e.pos[1] + dy), z);
+    const inWater = FLUID[at(0.35)] === 1;
+    if (FLUID[at(0.1)] === 2) {
+      e.removed = true;
+      game.particles.burst(e.pos, 'smoke', 8, 0.5);
+      return;
+    }
+    if (inWater) {
+      // Float with the deck a little above the water line.
+      let top = Math.floor(e.pos[1] + 0.35) + 1;
+      while (FLUID[world.getBlock(x, top, z)] === 1 && top < e.pos[1] + 3) top++;
+      const target = top - 0.42;
+      e.vel[1] += (Math.max(-3, Math.min(3, (target - e.pos[1]) * 8)) - e.vel[1]) * 0.3;
+    } else {
+      e.vel[1] = Math.max(e.vel[1] - 32 * DT, -30);
+    }
+    const ride = e.rider ? game.rideInput : null;
+    if (ride) {
+      // A and D turn the boat; W and S row forward and back.
+      e.yaw += -ride.strafe * 0.07;
+      const push = ride.forward * (inWater ? 0.55 : 0.12);
+      e.vel[0] += -Math.sin(e.yaw) * push;
+      e.vel[2] += -Math.cos(e.yaw) * push;
+    }
+    const drag = inWater ? 0.93 : e.onGround ? 0.5 : 0.98;
+    e.vel[0] *= drag;
+    e.vel[2] *= drag;
+    const max = inWater ? 8 : 2;
+    const sp = Math.hypot(e.vel[0], e.vel[2]);
+    if (sp > max) {
+      e.vel[0] *= max / sp;
+      e.vel[2] *= max / sp;
+    }
+    moveBody(world, e, e.vel[0] * DT, e.vel[1] * DT, e.vel[2] * DT);
+    if (e.collidedH) {
+      e.vel[0] *= 0.2;
+      e.vel[2] *= 0.2;
+    }
+    e.bodyYaw = e.yaw;
+    if (inWater && sp > 2 && e.age % 3 === 0) game.particles.burst([e.pos[0] + Math.sin(e.yaw) * 0.6, e.pos[1] + 0.3, e.pos[2] + Math.cos(e.yaw) * 0.6], 'splash', 2, 0.3);
+  }
+
+  tickBobber(e) {
+    const game = this.game;
+    const world = game.world;
+    const p = game.player;
+    if (game.bobber !== e || game.heldItem() !== 'fishing_rod' || p.dead || Math.hypot(e.pos[0] - p.pos[0], e.pos[1] - p.pos[1], e.pos[2] - p.pos[2]) > 32) {
+      e.removed = true;
+      if (game.bobber === e) game.bobber = null;
+      return;
+    }
+    const bx = Math.floor(e.pos[0]);
+    const bz = Math.floor(e.pos[2]);
+    const inWater = FLUID[world.getBlock(bx, Math.floor(e.pos[1] + 0.1), bz)] === 1;
+    if (inWater) {
+      // Bob at the surface, dipping under when a fish bites.
+      let top = Math.floor(e.pos[1] + 0.1) + 1;
+      while (FLUID[world.getBlock(bx, top, bz)] === 1 && top < e.pos[1] + 4) top++;
+      const target = top - 0.15 - (e.bite > 0 ? 0.3 : 0) + Math.sin(e.age * 0.15) * 0.03;
+      e.vel[1] += ((target - e.pos[1]) * 6 - e.vel[1]) * 0.3;
+      e.vel[0] *= 0.85;
+      e.vel[2] *= 0.85;
+      e.inWater = true;
+      if (e.bite > 0) {
+        if (--e.bite === 0) e.wait = 0;
+      } else if (e.wait <= 0) {
+        // Fish take longer in clear weather, less under open rain.
+        e.wait = 100 + Math.floor(Math.random() * (game.weather?.wet(world, e.pos[0], e.pos[1] + 1, e.pos[2]) ? 380 : 500));
+      } else if (--e.wait === 0) {
+        e.bite = 20;
+        game.sound('splash', e.pos, 0.8);
+        game.particles.burst([e.pos[0], e.pos[1] + 0.2, e.pos[2]], 'splash', 12, 0.3);
+      }
+    } else {
+      e.inWater = false;
+      e.vel[1] = Math.max(e.vel[1] - 14 * DT, -20);
+      e.vel[0] *= 0.99;
+      e.vel[2] *= 0.99;
+      if (e.onGround) {
+        e.vel[0] *= 0.5;
+        e.vel[2] *= 0.5;
+      }
+    }
+    moveBody(world, e, e.vel[0] * DT, e.vel[1] * DT, e.vel[2] * DT);
   }
 
   mergeItems() {
@@ -429,6 +545,7 @@ export function serializeEntity(e) {
   }
   if (e.kind === 'crystal') return { ...base };
   if (e.kind === 'xp') return { ...base, value: e.value, age: e.age };
+  if (e.kind === 'boat') return { ...base };
   return null;
 }
 
@@ -455,6 +572,7 @@ export function deserializeEntity(s) {
     return e;
   }
   if (s.kind === 'crystal') return endCrystal(x, y, z);
+  if (s.kind === 'boat') return boat(x, y, z, s.yaw ?? 0);
   if (s.kind === 'xp') {
     const e = xpOrb(s.value ?? 1, x, y, z);
     e.vel = [0, 0, 0];

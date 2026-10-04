@@ -95,6 +95,8 @@ shaped('melon', 1, ['MMM', 'MMM', 'MMM'], { M: 'melon_slice' });
 // Food
 shapeless('sugar', 1, ['sugar_cane']);
 shaped('bowl', 4, ['P P', ' P '], { P: '#planks' });
+shaped('fishing_rod', 1, ['  S', ' ST', 'S T'], { S: 'stick', T: 'string' });
+shaped('boat', 1, ['P P', 'PPP'], { P: '#planks' });
 shapeless('mushroom_stew', 1, ['bowl', 'brown_mushroom', 'red_mushroom']);
 shapeless('pumpkin_pie', 1, ['pumpkin', 'sugar', 'egg']);
 shaped('cake', 1, ['MMM', 'SES', 'WWW'], { M: 'milk_bucket', S: 'sugar', E: 'egg', W: 'wheat' });
@@ -135,13 +137,15 @@ export const SMELTING = {
   lapis_ore: 'lapis_lazuli',
   cactus: 'green_dye',
   emerald_ore: 'emerald',
+  cod: 'cooked_cod',
+  salmon: 'cooked_salmon',
 };
 
 // Experience a furnace stores for each item it smelts, paid out when you take the result.
 export const SMELT_XP = {
   iron_ore: 0.7, gold_ore: 1, diamond_ore: 1, coal_ore: 0.1, lapis_ore: 0.2, nether_quartz_ore: 0.2,
   sand: 0.1, cactus: 0.2, cobblestone: 0.1, clay_ball: 0.3, oak_log: 0.15, birch_log: 0.15, spruce_log: 0.15,
-  porkchop: 0.35, beef: 0.35, chicken: 0.35, mutton: 0.35,
+  porkchop: 0.35, beef: 0.35, chicken: 0.35, mutton: 0.35, cod: 0.35, salmon: 0.35,
 };
 
 for (const r of RECIPES) {

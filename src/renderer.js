@@ -596,6 +596,7 @@ export class Renderer {
     if (frame.crack) this.drawCrack(frame.crack, frame, cam, viewProj, fogColor, fog);
     if (frame.target) this.drawOutline(frame.target, viewProj, cam);
     if (frame.beams?.length) this.drawBeams(frame.beams, viewProj, cam);
+    if (frame.lines?.length) this.drawBeams(frame.lines, viewProj, cam, [0.12, 0.12, 0.12, 1]);
     this.drawParticles(frame, viewProj, basis, fogColor, fog);
 
     // Translucent pass: water, ice and portals, far to near, both sides visible.
@@ -765,7 +766,7 @@ export class Renderer {
     }
   }
 
-  drawBeams(beams, viewProj, cam) {
+  drawBeams(beams, viewProj, cam, color = [1, 0.55, 0.95, 1]) {
     const gl = this.gl;
     const lp = this.lineProgram;
     const data = new Float32Array(beams.length * 6);
@@ -776,7 +777,7 @@ export class Renderer {
     gl.uniformMatrix4fv(lp.u.uViewProj, false, viewProj);
     gl.uniform3f(lp.u.uOffset, 0, 0, 0);
     gl.uniform3f(lp.u.uScale, 1, 1, 1);
-    gl.uniform4f(lp.u.uColor, 1, 0.55, 0.95, 1);
+    gl.uniform4fv(lp.u.uColor, color);
     gl.bindVertexArray(this.beamVao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.beamBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
