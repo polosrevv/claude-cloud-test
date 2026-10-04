@@ -6,14 +6,29 @@
 // occlusion at chunk edges match up without asking the world for anything.
 //
 // Output vertices are 16 bytes:
-//   int16  x, y, z, flags         position in 1/16 block units, chunk-local; flags bit 0 = scrolling texture
+//   int16  x, y, z, flags         position in 1/16 block units, chunk-local; flags are the FLAG_* bits below
 //   uint8  u, v, layerLo, layerHi texture coordinates in 1/16 of a tile, layer in the texture array
 //   uint8  sky, block, ao, shade  light levels * 16, AO 0..3, face shade 0..255
 import { CHUNK, HEIGHT } from './constants.js';
 import {
-  B, OPAQUE, RENDER_TYPE, RENDER, SELF_CULL, LEAVES, INSET, EMIT, ATTEN, FACE_TEX,
+  B, BLOCKS, BLOCK_COUNT, OPAQUE, RENDER_TYPE, RENDER, SELF_CULL, LEAVES, INSET, EMIT, ATTEN, FACE_TEX,
   TRANSLUCENT, FLUID, FLUID_LEVEL, MODELS, SCROLL, CONNECT, connectMask, connectModel,
 } from './blocks.js';
+
+// Vertex flags, read by the shaders: scrolling liquid textures, water to
+// ripple and reflect, leaves and plants that sway in the wind (plants only
+// at their tops).
+export const FLAG_SCROLL = 1;
+export const FLAG_WATER = 2;
+export const FLAG_LEAVES = 4;
+export const FLAG_PLANT = 8;
+export const FLAG_TOP = 16;
+const SWAY = new Uint8Array(BLOCK_COUNT);
+for (let id = 1; id < BLOCK_COUNT; id++) {
+  const key = BLOCKS[id].key;
+  if (LEAVES[id]) SWAY[id] = FLAG_LEAVES;
+  else if (RENDER_TYPE[id] === RENDER.CROSS && key !== 'fire' && !key.endsWith('mushroom') && !key.startsWith('nether_wart')) SWAY[id] = FLAG_PLANT;
+}
 
 export const PAD = 8;
 export const RW = CHUNK + PAD * 2;
@@ -105,7 +120,8 @@ function setStandardUV() {
   for (let c = 0; c < 4; c++) { qU[c] = UV_U[c]; qV[c] = UV_V[c]; }
 }
 
-function writeQuad(w, layer, shade, flags = 0) {
+// top: a bit per corner that gets FLAG_TOP (the swaying tops of plants).
+function writeQuad(w, layer, shade, flags = 0, top = 0) {
   w.ensure(w.quads + 1);
   // Pick the diagonal that keeps AO gradients symmetric.
   const flip = qAo[0] + qAo[2] < qAo[1] + qAo[3];
@@ -118,7 +134,7 @@ function writeQuad(w, layer, shade, flags = 0) {
     i16[s] = qPos[c * 3];
     i16[s + 1] = qPos[c * 3 + 1];
     i16[s + 2] = qPos[c * 3 + 2];
-    i16[s + 3] = flags;
+    i16[s + 3] = (top >> c) & 1 ? flags | FLAG_TOP : flags;
     const b = v * 16 + 8;
     u8[b] = qU[c];
     u8[b + 1] = qV[c];
@@ -268,7 +284,7 @@ function cubeFaces(region, sky, blk, i, px, py, pz, id, out) {
       qPos[c * 3 + 1] = (py + corner[1]) * 16;
       qPos[c * 3 + 2] = (pz + corner[2]) * 16 - (sideInset ? face.dir[2] : 0);
     }
-    writeQuad(out, FACE_TEX[id * 6 + f], face.shade);
+    writeQuad(out, FACE_TEX[id * 6 + f], face.shade, SWAY[id]);
   }
 }
 
@@ -392,7 +408,7 @@ function liquidFaces(region, sky, blk, i, px, py, pz, id, out) {
       qSky[c] = sl;
       qBlk[c] = bl;
     }
-    writeQuad(out, FACE_TEX[id * 6 + f], face.shade, 1);
+    writeQuad(out, FACE_TEX[id * 6 + f], face.shade, type === 1 ? FLAG_SCROLL | FLAG_WATER : FLAG_SCROLL);
   }
 }
 
@@ -416,7 +432,7 @@ function crossFaces(region, sky, blk, i, px, py, pz, id, out) {
       qSky[c] = sl;
       qBlk[c] = bl;
     }
-    writeQuad(out, layer, 216);
+    writeQuad(out, layer, 216, SWAY[id], SWAY[id] ? 0b1100 : 0);
   }
 }
 

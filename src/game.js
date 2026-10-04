@@ -2327,21 +2327,53 @@ export class Game {
     let hand = null;
     if (!titleCamera && !p.dead && !p.spectator && settings.showHand !== false) {
       const handLight = this.lightColor(cam[0], cam[1], cam[2]);
+      // Switching items dips the hand out of view and brings the new one up.
+      const dt = Math.min(0.1, this.clock - (this.handClock ?? this.clock));
+      this.handClock = this.clock;
+      const key = this.heldItem();
+      if (key !== this.handKey) {
+        if (this.handShown === undefined) this.handShown = key;
+        this.handKey = key;
+        this.equipping = true;
+      }
+      if (this.equipping) {
+        this.equip = Math.min(1, (this.equip ?? 0) + dt * 8);
+        if (this.equip >= 1) { this.equipping = false; this.handShown = key; }
+      } else {
+        this.handShown = key;
+        this.equip = Math.max(0, (this.equip ?? 0) - dt * 8);
+      }
+      // The hand trails a little behind fast turns.
+      const follow = 1 - Math.exp(-dt * 12);
+      this.handLag ??= [yaw, pitch];
+      const dYaw = Math.atan2(Math.sin(yaw - this.handLag[0]), Math.cos(yaw - this.handLag[0]));
+      this.handLag[0] += dYaw * follow;
+      this.handLag[1] += (pitch - this.handLag[1]) * follow;
+      const shown = this.handShown;
       hand = {
-        key: this.heldItem(),
+        key: shown,
         swing: this.swing,
         bob: this.handBob ?? [0, 0],
         light: Math.max(handLight[0], handLight[1], handLight[2]),
-        eat: this.using?.kind === 'eat' ? this.using.time : 0,
-        pull: this.using?.kind === 'bow' ? Math.min(1, this.using.time) : 0,
-        glint: !!this.heldStack()?.ench,
-        bow: this.heldItem() === 'bow',
+        eat: this.using?.kind === 'eat' && shown === key ? this.using.time : 0,
+        pull: this.using?.kind === 'bow' && shown === key ? this.using.time : 0,
+        glint: shown === key && !!this.heldStack()?.ench,
+        equip: this.equip,
+        sway: [Math.max(-0.6, Math.min(0.6, -dYaw * (1 - follow))), Math.max(-0.6, Math.min(0.6, this.handLag[1] - pitch))],
       };
+    }
+    // Raw sky and block light at each mob, for the shader pipeline's lighting.
+    for (const ent of entities) {
+      if (ent.light[0] >= 1 && ent.light[1] >= 1 && ent.light[2] >= 1) { ent.levels = [1, 1]; continue; }
+      const l = this.world.getLight(Math.floor(ent.pos[0]), Math.floor(ent.pos[1] + 0.5), Math.floor(ent.pos[2]));
+      ent.levels = [(l >> 4) / 15, (l & 15) / 15];
     }
     const feet = this.world.getBlock(Math.floor(cam[0]), Math.floor(cam[1]), Math.floor(cam[2]));
     const weather = this.weather.geometry(this, cam, this.clock, Math.max(0.22, sky.daylight * 0.95), this.weatherLayers);
     return {
       cam, yaw, pitch, roll,
+      title: !!titleCamera,
+      graphics: settings.graphics ?? 'vanilla',
       fov: (fov * Math.PI) / 180,
       sky,
       dim: style,

@@ -77,6 +77,7 @@ class App {
     this.isTouch = matchMedia('(pointer: coarse)').matches && 'ontouchstart' in window;
     this.settings = {
       renderDistance: this.isTouch ? 4 : 7,
+      graphics: this.isTouch ? 'vanilla' : 'shadows',
       fov: 75,
       sensitivity: 1,
       sound: true,
@@ -141,6 +142,7 @@ class App {
     r.itemMeshBuilder = (key) => {
       if (key === '__arm') return { ...buildOverlayMesh([[0.375, 0, 0.375, 0.625, 0.75, 0.625]], armLayer), translucent: false };
       if (key === 'fire_charge') return buildBlockItemMesh(B.LAVA);
+      if (key.startsWith('bow_pulling_')) return { ...buildSpriteMesh(textureIndex(`item_${key}`), this.textures.tiles[`item_${key}`]), sprite: true };
       const item = ITEMS[key];
       if (!item) return null;
       if (item.layer < 0) return buildBlockItemMesh(item.displayId);
@@ -321,6 +323,11 @@ class App {
         : 'Gather resources, craft tools, eat to stay alive, and work toward the Ender Dragon.';
     });
     choose($('diff-choices'), 'diff');
+    $('pause-gfx').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      this.settings.graphics = b.dataset.gfx;
+      this.applySettings();
+      this.renderGraphicsChoice();
+    }));
     $('pause-diff').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       this.game.difficulty = b.dataset.diff;
       this.renderPauseDifficulty();
@@ -397,6 +404,15 @@ class App {
     storage.set(SETTINGS_KEY, persist);
   }
 
+  renderGraphicsChoice() {
+    const failed = this.renderer.fxFailed;
+    $('pause-gfx').querySelectorAll('button').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.gfx === (failed ? 'vanilla' : this.settings.graphics)));
+      b.disabled = failed && b.dataset.gfx !== 'vanilla';
+    });
+    $('gfx-note').hidden = !failed;
+  }
+
   renderPauseDifficulty() {
     $('pause-diff').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.diff === this.game.difficulty)));
   }
@@ -444,6 +460,7 @@ class App {
     $('resume-hint').hidden = true;
     this.input.releaseLock();
     this.renderPauseDifficulty();
+    this.renderGraphicsChoice();
     const g = this.game;
     $('pause-status').innerHTML = `${escapeHtml(this.current?.name ?? '')} · seed <b>${escapeHtml(g.seedText)}</b> · ${g.player.mode} · day ${Math.floor(g.dayTicks / 24000) + 1}${this.lastSaveOk === false ? ' · <b>Saving is unavailable in this browser</b>' : ' · Saved'}`;
   }

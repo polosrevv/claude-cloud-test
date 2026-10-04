@@ -98,6 +98,15 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
 
 ### Engine
 
+- **Shaders.** Pick *Vanilla*, *Shaders* or *Shaders + shadows* under Graphics in the pause menu. The shader modes add:
+  - a warm sun and a cool moon that light faces by their angle, a blue sky fill in the shade, and orange torchlight;
+  - soft real-time shadows from terrain, trees and mobs (with *Shaders + shadows*);
+  - rippling water that reflects the sky and glints in the sun;
+  - leaves and plants swaying in the wind, harder in storms;
+  - a new sky: a glowing sun, a moon with dark seas, twinkling stars and soft drifting clouds lit from the sun's side, and fog that melts distant land into the sky;
+  - bloom on lava, glowstone, torches and the sun, god rays around the sun, filmic tone mapping and a soft vignette.
+  - They need a browser that can render to floating-point targets; otherwise the game stays on Vanilla.
+- **First-person view.** The arm, tools, blocks and food sit in your hand at Minecraft's size and angles, with its swing, eating and drinking, and bow-drawing animations. Switching items dips the hand out of view, and it trails a little behind fast turns.
 - **Lighting.** Sunlight and block light flood-fill through chunks. Faces get smooth lighting and ambient occlusion. Torches, glowstone, lava and fire glow.
 - **Sky.** A 20-minute day with a square sun and moon, stars, sunsets, clouds and fog.
 - **Models.** Block-model mobs with walk animations, a held item or arm, item drops spinning in the world, particles, and block cracks while you mine.
@@ -121,7 +130,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
 | `L` | Advancements |
 | `F3` | Debug info |
 | `F1` | Hide the HUD |
-| `Esc` | Pause menu (settings, difficulty, save and quit) |
+| `Esc` | Pause menu (settings, graphics, difficulty, save and quit) |
 
 If the page can't capture the mouse (some embedded frames refuse pointer lock), the game switches to drag-to-look.
 
@@ -177,7 +186,8 @@ src/commands.js       chat commands and Tab completion
 src/advancements.js   advancements and the goal hint
 src/weather.js        rain, snow, thunderstorms and lightning
 src/mesher.js         light flood-fill and chunk meshing (culling, AO, smooth light, block models)
-src/renderer.js       WebGL2: sky, chunks, water, entities, particles, held item, overlays
+src/renderer.js       WebGL2: sky, chunks, water, entities, particles, held item, overlays; vanilla and shader pipelines
+src/shaders.js        GLSL for the shader pipeline: lit terrain and mobs, shadows, water, sky, bloom, god rays
 src/textures.js       procedural 16x16 block textures; src/sprites.js draws items; src/skins.js draws mobs
 src/models.js         box models for the player, mobs and the dragon
 src/streamer.js       loads and unloads chunks around the camera with a Web Worker pool (src/worker.js, src/jobs.js)

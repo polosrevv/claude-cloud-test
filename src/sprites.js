@@ -500,16 +500,10 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
     item_cooked_cod(t, r) { fish(t, r, [214, 186, 150], [170, 130, 90]); },
     item_salmon(t, r) { fish(t, r, [176, 60, 50], [110, 120, 130]); },
     item_cooked_salmon(t, r) { fish(t, r, [214, 120, 80], [150, 90, 60]); },
-    item_bow(t, r) {
-      clear(t);
-      for (let i = 0; i <= 12; i++) {
-        const a = (i / 12) * Math.PI;
-        const x = Math.round(2 + i * 0.9 + Math.sin(a) * 3);
-        const y = Math.round(2 + i * 0.9 - Math.sin(a) * 3);
-        put(t, x, y, [140, 96, 44]); put(t, x + 1, y, [100, 68, 30]);
-      }
-      line(t, r, 3, 3, 13, 13, [220, 220, 220], 1);
-    },
+    item_bow(t, r) { bow(t, r, 0); },
+    item_bow_pulling_0(t, r) { bow(t, r, 1); },
+    item_bow_pulling_1(t, r) { bow(t, r, 2); },
+    item_bow_pulling_2(t, r) { bow(t, r, 3); },
     item_arrow(t, r) {
       clear(t);
       line(t, r, 3, 12, 11, 4, [146, 108, 52], 1);
@@ -613,6 +607,28 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
       ], { w: [236, 236, 230], R: [170, 34, 34], b: [130, 92, 50] });
     },
   };
+
+  // The bow, and the three stages of drawing it: the string pulls back and an arrow sits nocked.
+  function bow(t, r, pull) {
+    clear(t);
+    for (let i = 0; i <= 12; i++) {
+      const a = (i / 12) * Math.PI;
+      const x = Math.round(2 + i * 0.9 + Math.sin(a) * 3);
+      const y = Math.round(2 + i * 0.9 - Math.sin(a) * 3);
+      put(t, x, y, [140, 96, 44]); put(t, x + 1, y, [100, 68, 30]);
+    }
+    if (!pull) {
+      line(t, r, 3, 3, 13, 13, [220, 220, 220], 1);
+      return;
+    }
+    const mx = 7 - pull;
+    const my = 9 + pull;
+    line(t, r, 3, 3, mx, my, [220, 220, 220], 1);
+    line(t, r, mx, my, 13, 13, [220, 220, 220], 1);
+    line(t, r, mx + 1, my - 1, 12, 4, [146, 108, 52], 1);
+    for (const [x, y] of [[13, 3], [14, 2], [13, 2], [12, 3]]) put(t, x, y, [180, 180, 186]);
+    for (const [x, y] of [[mx, my - 1], [mx + 1, my], [mx + 1, my - 2], [mx + 2, my - 1]]) put(t, x, y, [236, 236, 236]);
+  }
 
   for (const mat of ['wooden', 'stone', 'iron', 'golden', 'diamond']) {
     for (const kind of Object.keys(TOOLS)) items[`item_${mat}_${kind}`] = tool(kind, mat);

@@ -316,3 +316,37 @@ test('ladders let the player climb', () => {
   for (let i = 0; i < 120; i++) p.update(1 / 60, { ...idle, forward: 1 }, w);
   assert.ok(p.pos[1] > 12.5, `climbed to ${p.pos[1]}`);
 });
+
+test('vertices carry shader flags: water ripples, leaves and plant tops sway', async () => {
+  const { FLAG_SCROLL, FLAG_WATER, FLAG_LEAVES, FLAG_PLANT, FLAG_TOP } = await import('../src/mesher.js');
+  const flagsOf = (buffer) => {
+    const i16 = new Int16Array(buffer);
+    const out = [];
+    for (let v = 0; v < i16.length / 8; v++) out.push(i16[v * 8 + 3]);
+    return out;
+  };
+  const water = flagsOf(buildChunkMesh(regionWith([[4, 40, 4, B.WATER]])).water);
+  assert.ok(water.length && water.every((f) => f === (FLAG_SCROLL | FLAG_WATER)));
+  const lava = flagsOf(buildChunkMesh(regionWith([[4, 40, 4, B.LAVA]])).solid);
+  assert.ok(lava.length && lava.every((f) => f === FLAG_SCROLL));
+  const leaves = flagsOf(buildChunkMesh(regionWith([[4, 40, 4, B.OAK_LEAVES]])).solid);
+  assert.ok(leaves.length && leaves.every((f) => f === FLAG_LEAVES));
+  // Plants: only the top corners move.
+  const plantMesh = buildChunkMesh(regionWith([[4, 40, 4, B.TALL_GRASS]])).solid;
+  const i16 = new Int16Array(plantMesh);
+  for (let v = 0; v < i16.length / 8; v++) {
+    const top = i16[v * 8 + 1] === 41 * 16;
+    assert.equal(i16[v * 8 + 3], FLAG_PLANT | (top ? FLAG_TOP : 0));
+  }
+  // Fire and stone stay still.
+  assert.ok(flagsOf(buildChunkMesh(regionWith([[4, 40, 4, B.FIRE]])).solid).every((f) => f === 0));
+  assert.ok(flagsOf(buildChunkMesh(regionWith([[4, 40, 4, B.STONE]])).solid).every((f) => f === 0));
+});
+
+test('the shader pipeline sources assemble', async () => {
+  const FX = await import('../src/shaders.js');
+  for (const key of ['TERRAIN_VS', 'TERRAIN_FS', 'SHADOW_VS', 'SHADOW_FS', 'ENTITY_FS', 'SKY_FS', 'COMPOSITE_FS', 'RAYS_FS', 'BLUR_FS', 'BRIGHT_FS']) {
+    assert.ok(FX[key].startsWith('#version 300 es'), key);
+    assert.equal((FX[key].match(/\{/g) ?? []).length, (FX[key].match(/\}/g) ?? []).length, `${key} braces balance`);
+  }
+});

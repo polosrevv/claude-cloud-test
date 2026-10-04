@@ -655,6 +655,15 @@ kbd {
         <label for="opt-goal"><input id="opt-goal" type="checkbox"> Show next goal</label>
       </div>
       <div>
+        <div class="label" id="gfx-label">Graphics</div>
+        <div class="choices" id="pause-gfx" role="group" aria-labelledby="gfx-label">
+          <button class="btn small" type="button" data-gfx="vanilla">Vanilla</button>
+          <button class="btn small" type="button" data-gfx="shaders">Shaders</button>
+          <button class="btn small" type="button" data-gfx="shadows">Shaders + shadows</button>
+        </div>
+        <p class="hint" id="gfx-note" hidden>Shaders need floating-point render targets, which this browser doesn't offer.</p>
+      </div>
+      <div>
         <div class="label" id="pdiff-label">Difficulty</div>
         <div class="choices" id="pause-diff" role="group" aria-labelledby="pdiff-label">
           <button class="btn small" type="button" data-diff="peaceful">Peaceful</button>
