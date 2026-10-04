@@ -460,6 +460,67 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
       for (const [x, y] of [[2, 12], [3, 13], [2, 13], [1, 12], [3, 14], [2, 11]]) put(t, x, y, [236, 236, 236]);
     },
     item_red_dye(t, r) { pile(t, r, [200, 40, 40]); },
+    item_orange_dye(t, r) { pile(t, r, [234, 130, 40]); },
+    item_magenta_dye(t, r) { pile(t, r, [196, 74, 196]); },
+    item_light_blue_dye(t, r) { pile(t, r, [110, 160, 226]); },
+    item_lime_dye(t, r) { pile(t, r, [120, 200, 50]); },
+    item_pink_dye(t, r) { pile(t, r, [238, 156, 182]); },
+    item_gray_dye(t, r) { pile(t, r, [74, 74, 80]); },
+    item_light_gray_dye(t, r) { pile(t, r, [160, 160, 166]); },
+    item_cyan_dye(t, r) { pile(t, r, [44, 140, 160]); },
+    item_purple_dye(t, r) { pile(t, r, [130, 60, 186]); },
+    item_green_dye(t, r) { pile(t, r, [80, 110, 34]); },
+    item_sugar(t, r) { pile(t, r, [246, 246, 250]); },
+    item_bowl(t, r) {
+      clear(t);
+      art(t, r, ['', '', '', '', '', '',
+        '.oooooooooooooo.',
+        'o##############o',
+        '.o############o.',
+        '..o##########o..',
+        '...oo######oo...',
+        '.....oooooo.....',
+      ], { '#': [150, 104, 56], o: [90, 60, 30] });
+    },
+    item_mushroom_stew(t, r) {
+      clear(t);
+      art(t, r, ['', '', '', '', '',
+        '...ssbsssbsss...',
+        '.oossssbssssoo..',
+        'o##############o',
+        '.o############o.',
+        '..o##########o..',
+        '...oo######oo...',
+        '.....oooooo.....',
+      ], { '#': [150, 104, 56], o: [90, 60, 30], s: [196, 150, 100], b: [120, 80, 60] });
+    },
+    item_pumpkin_seeds(t, r) {
+      clear(t);
+      for (const [x, y] of [[4, 6], [9, 4], [7, 10], [11, 9], [5, 12]]) { put(t, x, y, [236, 226, 180]); put(t, x + 1, y, [220, 206, 160]); put(t, x, y + 1, [200, 190, 140]); }
+    },
+    item_melon_seeds(t, r) {
+      clear(t);
+      for (const [x, y] of [[4, 6], [9, 4], [7, 10], [11, 9], [5, 12]]) { put(t, x, y, [40, 30, 24]); put(t, x + 1, y, [60, 46, 36]); put(t, x, y + 1, [30, 22, 18]); }
+    },
+    item_melon_slice(t, r) {
+      clear(t);
+      art(t, r, ['', '', '', '', '',
+        '..g.............',
+        '..gr............',
+        '..grrr..........',
+        '..grrkrr........',
+        '..grrrrrrr......',
+        '..grkrrrkrrr....',
+        '..grrrrrrrrrr...',
+        '..gggggggggggg..',
+      ], { g: [90, 150, 40], r: [220, 60, 50], k: [30, 20, 20] });
+    },
+    item_pumpkin_pie(t, r) {
+      clear(t);
+      disk(t, r, 8, 9, 6.2, 4.2, [200, 140, 70], 0.06);
+      disk(t, r, 8, 8.4, 4.8, 3, [222, 130, 40], 0.06);
+      rim(t, 0.55);
+    },
     item_yellow_dye(t, r) { pile(t, r, [240, 210, 50]); },
     item_sugar_cane(t) {
       clear(t);

@@ -2,17 +2,29 @@
 // Movement is clipped one axis at a time against the collision boxes of the
 // blocks around the mover (the same approach Minecraft uses), with an optional
 // step-up so walkers climb slabs and stairs-height ledges without jumping.
-import { B, COLLISION } from './blocks.js';
+import { B, COLLISION, SELECTION, CONNECT, connectMask, connectShapes, connectSelection } from './blocks.js';
 
 const EPS = 1e-7;
 const boxes = [];
+
+// Collision boxes of the block at (x, y, z) (block units); fences and panes depend on their neighbours.
+export function shapesAt(world, x, y, z, id) {
+  if (CONNECT[id]) return connectShapes(id, connectMask(id, (dx, dz) => world.getBlock(x + dx, y, z + dz)));
+  return COLLISION[id];
+}
+
+// Selection (outline and targeting) boxes, likewise.
+export function selectionAt(world, x, y, z, id) {
+  if (CONNECT[id]) return connectSelection(id, connectMask(id, (dx, dz) => world.getBlock(x + dx, y, z + dz)));
+  return SELECTION[id];
+}
 
 function gather(world, minX, minY, minZ, maxX, maxY, maxZ) {
   boxes.length = 0;
   for (let y = Math.floor(minY) - 1; y <= Math.floor(maxY); y++) {
     for (let z = Math.floor(minZ); z <= Math.floor(maxZ); z++) {
       for (let x = Math.floor(minX); x <= Math.floor(maxX); x++) {
-        const shapes = COLLISION[world.getBlock(x, y, z, B.BEDROCK)];
+        const shapes = shapesAt(world, x, y, z, world.getBlock(x, y, z, B.BEDROCK));
         if (!shapes) continue;
         for (const s of shapes) boxes.push(x + s[0], y + s[1], z + s[2], x + s[3], y + s[4], z + s[5]);
       }

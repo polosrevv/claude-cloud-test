@@ -191,6 +191,75 @@ def({
   opaque: false, emit: 7, ...stoneLike({ hardness: 5, resistance: 1200 }), use: 'enchant',
 });
 
+// ---- Building blocks and food ----
+// Stairs: a bottom slab plus a back half, rising toward the facing direction.
+const STAIRS = [
+  ['oak', 'Oak', 'planks', { sound: 'wood', hardness: 2, tool: 'axe', flammable: true }],
+  ['cobblestone', 'Cobblestone', 'cobblestone', stoneLike({ hardness: 2, resistance: 6 })],
+  ['stone_brick', 'Stone Brick', 'stone_bricks', stoneLike({ hardness: 1.5, resistance: 6 })],
+  ['brick', 'Brick', 'bricks', stoneLike({ hardness: 2, resistance: 6 })],
+  ['sandstone', 'Sandstone', { top: 'sandstone_top', bottom: 'sandstone_top', side: 'sandstone' }, stoneLike({ hardness: 0.8 })],
+];
+for (const [mat, name, tex, props] of STAIRS) {
+  for (let f = 0; f < 4; f++) {
+    def({
+      key: `${mat}_stairs_${FACINGS[f]}`, name: `${name} Stairs`, tex, facing: f, item: `${mat}_stairs`, hidden: true, render: RENDER.MODEL,
+      model: [{ from: [0, 0, 0], to: [16, 8, 16] }, { from: [0, 8, 0], to: [16, 16, 8] }], opaque: false, ...props,
+    });
+  }
+}
+// Fences and panes join up with their neighbours (see CONNECT below).
+def({ key: 'oak_fence', name: 'Oak Fence', tex: 'planks', render: RENDER.MODEL, model: [{ from: [6, 0, 6], to: [10, 16, 10] }], opaque: false, connect: 'fence', sound: 'wood', hardness: 2, tool: 'axe', flammable: true });
+def({ key: 'nether_brick_fence', name: 'Nether Brick Fence', tex: 'nether_bricks', render: RENDER.MODEL, model: [{ from: [6, 0, 6], to: [10, 16, 10] }], opaque: false, connect: 'fence', ...stoneLike({ hardness: 2, resistance: 6 }) });
+def({ key: 'glass_pane', name: 'Glass Pane', tex: 'glass', render: RENDER.MODEL, model: [{ from: [7, 0, 7], to: [9, 16, 9] }], opaque: false, cutout: true, connect: 'pane', sound: 'glass', hardness: 0.3, drops: null });
+def({ key: 'iron_bars', name: 'Iron Bars', tex: 'iron_bars', render: RENDER.MODEL, model: [{ from: [7, 0, 7], to: [9, 16, 9] }], opaque: false, cutout: true, connect: 'pane', ...stoneLike({ hardness: 5, resistance: 6 }) });
+// Fence gates: closed they block like a fence; open they swing aside.
+for (const open of [false, true]) {
+  for (let f = 0; f < 4; f++) {
+    const rails = open
+      ? [{ from: [0, 6, 0], to: [2, 9, 7] }, { from: [0, 12, 0], to: [2, 15, 7] }, { from: [14, 6, 0], to: [16, 9, 7] }, { from: [14, 12, 0], to: [16, 15, 7] }]
+      : [{ from: [2, 6, 7], to: [14, 9, 9] }, { from: [2, 12, 7], to: [14, 15, 9] }, { from: [6, 9, 7], to: [10, 12, 9] }];
+    const along = f % 2 === 0;
+    def({
+      key: `oak_fence_gate_${FACINGS[f]}${open ? '_open' : ''}`, name: 'Oak Fence Gate', tex: 'planks', facing: f, item: 'oak_fence_gate', hidden: true,
+      render: RENDER.MODEL, model: [{ from: [0, 5, 7], to: [2, 16, 9] }, { from: [14, 5, 7], to: [16, 16, 9] }, ...rails],
+      collision: open ? null : [along ? [0, 0, 6 / 16, 1, 1.5, 10 / 16] : [6 / 16, 0, 0, 10 / 16, 1.5, 1]],
+      select: [along ? [0, 0, 6 / 16, 1, 1, 10 / 16] : [6 / 16, 0, 0, 10 / 16, 1, 1]],
+      opaque: false, gate: { open }, use: 'gate', sound: 'wood', hardness: 2, tool: 'axe', flammable: true,
+    });
+  }
+}
+for (const [color, name] of [['orange', 'Orange'], ['magenta', 'Magenta'], ['light_blue', 'Light Blue'], ['pink', 'Pink'], ['gray', 'Gray'], ['light_gray', 'Light Gray'], ['cyan', 'Cyan'], ['purple', 'Purple'], ['green', 'Green'], ['brown', 'Brown']]) {
+  def({ key: `wool_${color}`, name: `${name} Wool`, tex: `wool_${color}`, sound: 'cloth', hardness: 0.8, tool: 'shears', flammable: true });
+}
+for (const lit of [false, true]) {
+  for (let f = 0; f < 4; f++) {
+    def({
+      key: `${lit ? 'jack_o_lantern' : 'pumpkin'}_${FACINGS[f]}`, name: lit ? "Jack o'Lantern" : 'Pumpkin', facing: f, item: lit ? 'jack_o_lantern' : 'pumpkin', hidden: true,
+      tex: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: lit ? 'jack_o_lantern_face' : 'pumpkin_face' },
+      emit: lit ? 15 : 0, sound: 'wood', hardness: 1, tool: 'axe',
+    });
+  }
+}
+def({ key: 'melon', name: 'Melon', tex: { top: 'melon_top', bottom: 'melon_top', side: 'melon_side' }, sound: 'wood', hardness: 1, tool: 'axe', drops: { item: 'melon_slice', min: 3, max: 7 } });
+// Stems grow through eight stages, then put a fruit on a free block beside them.
+for (const fruit of ['pumpkin', 'melon']) {
+  for (let stage = 0; stage < 8; stage++) {
+    def({ key: `${fruit}_stem_${stage}`, name: `${fruit === 'pumpkin' ? 'Pumpkin' : 'Melon'} Stem`, tex: `stem_${stage}`, ...plant, hidden: true, item: `${fruit}_seeds`, stem: fruit, stage, onFarmland: true, drops: `${fruit}_seeds` });
+  }
+}
+def({ key: 'brown_mushroom', name: 'Brown Mushroom', tex: 'brown_mushroom', ...plant, mushroom: true, emit: 1 });
+def({ key: 'red_mushroom', name: 'Red Mushroom', tex: 'red_mushroom', ...plant, mushroom: true });
+// Cake: seven slices, eaten one right-click at a time.
+for (let bites = 0; bites < 7; bites++) {
+  const x0 = 1 + bites * 2;
+  def({
+    key: `cake_${bites}`, name: 'Cake', tex: { top: 'cake_top', bottom: 'cake_bottom', side: 'cake_side' }, hidden: true, item: bites === 0 ? 'cake' : null,
+    render: RENDER.MODEL, model: [{ from: [x0, 0, 1], to: [15, 8, 15], uv: bites ? { 1: [1, 8, 15, 16] } : undefined, ...(bites ? { faceTex: { 1: 'cake_inner' } } : {}) }],
+    opaque: false, cake: bites, use: 'cake', sound: 'cloth', hardness: 0.5, drops: null, needsSupport: 'below',
+  });
+}
+
 export const BLOCK_COUNT = DEFS.length;
 if (BLOCK_COUNT > 256) throw new Error('Too many block states for a byte');
 
@@ -280,7 +349,7 @@ DEFS.forEach((d, id) => {
   if (render === RENDER.MODEL) {
     const turns = d.facing ?? 0;
     const boxes = d.model.map((b) => {
-      const faceTex = {};
+      const faceTex = { ...(b.faceTex || {}) };
       if (b.tex) for (let f = 0; f < 6; f++) faceTex[f] = b.tex;
       // A front texture follows the model's north face.
       if (tex.front) faceTex[FACE.NORTH] = tex.front;
@@ -310,6 +379,74 @@ DEFS.forEach((d, id) => {
   SOLID[id] = COLLISION[id] ? 1 : 0;
 });
 
+// ---- Connecting blocks: fences and panes reach out to their neighbours ----
+// Mask bits: 1 north (-z), 2 east (+x), 4 south (+z), 8 west (-x).
+export const CONNECT = new Uint8Array(256); // 0 none, 1 fence, 2 pane
+const GATE = new Uint8Array(256);
+const CONNECT_MODELS = new Array(256).fill(null);
+const CONNECT_SHAPES = new Array(256).fill(null);
+const CONNECT_SELECT = new Array(256).fill(null);
+const ARMS = {
+  fence: {
+    post: [[6, 0, 6, 10, 16, 10]],
+    1: [[7, 6, 0, 9, 9, 6], [7, 12, 0, 9, 15, 6]], 2: [[10, 6, 7, 16, 9, 9], [10, 12, 7, 16, 15, 9]],
+    4: [[7, 6, 10, 9, 9, 16], [7, 12, 10, 9, 15, 16]], 8: [[0, 6, 7, 6, 9, 9], [0, 12, 7, 6, 15, 9]],
+    hit: { post: [6, 0, 6, 10, 24, 10], 1: [6, 0, 0, 10, 24, 6], 2: [10, 0, 6, 16, 24, 10], 4: [6, 0, 10, 10, 24, 16], 8: [0, 0, 6, 6, 24, 10] },
+  },
+  pane: {
+    post: [[7, 0, 7, 9, 16, 9]],
+    1: [[7, 0, 0, 9, 16, 7]], 2: [[9, 0, 7, 16, 16, 9]], 4: [[7, 0, 9, 9, 16, 16]], 8: [[0, 0, 7, 7, 16, 9]],
+    hit: { post: [7, 0, 7, 9, 16, 9], 1: [7, 0, 0, 9, 16, 7], 2: [9, 0, 7, 16, 16, 9], 4: [7, 0, 9, 9, 16, 16], 8: [0, 0, 7, 7, 16, 9] },
+  },
+};
+DEFS.forEach((d, id) => {
+  if (d.gate) GATE[id] = 1;
+  if (!d.connect) return;
+  CONNECT[id] = d.connect === 'fence' ? 1 : 2;
+  const arms = ARMS[d.connect];
+  const layers = [0, 1, 2, 3, 4, 5].map((f) => FACE_TEX[id * 6 + f]);
+  const units = (b) => b.map((v, k) => (k === 1 || k === 4 ? v / 16 : v / 16));
+  CONNECT_MODELS[id] = [];
+  CONNECT_SHAPES[id] = [];
+  CONNECT_SELECT[id] = [];
+  for (let mask = 0; mask < 16; mask++) {
+    const parts = [...arms.post];
+    const hits = [arms.hit.post];
+    for (const bit of [1, 2, 4, 8]) {
+      if (mask & bit) {
+        parts.push(...arms[bit]);
+        hits.push(arms.hit[bit]);
+      }
+    }
+    CONNECT_MODELS[id].push(parts.map((b) => ({ from: [b[0], b[1], b[2]], to: [b[3], b[4], b[5]], layers })));
+    CONNECT_SHAPES[id].push(hits.map(units));
+    CONNECT_SELECT[id].push(hits.map((b) => units([b[0], b[1], b[2], b[3], Math.min(16, b[4]), b[5]])));
+  }
+});
+
+// Does a connecting block reach toward this neighbour?
+export function connectsTo(id, other) {
+  const g = CONNECT[id];
+  if (!g || !other) return false;
+  if (CONNECT[other] === g) return true;
+  if (g === 1 && GATE[other]) return true;
+  return OPAQUE[other] === 1 && RENDER_TYPE[other] === RENDER.CUBE;
+}
+
+// Neighbour mask for a connecting block; get(dx, dz) returns the neighbour's id.
+export function connectMask(id, get) {
+  let mask = 0;
+  if (connectsTo(id, get(0, -1))) mask |= 1;
+  if (connectsTo(id, get(1, 0))) mask |= 2;
+  if (connectsTo(id, get(0, 1))) mask |= 4;
+  if (connectsTo(id, get(-1, 0))) mask |= 8;
+  return mask;
+}
+
+export const connectModel = (id, mask) => CONNECT_MODELS[id][mask];
+export const connectShapes = (id, mask) => CONNECT_SHAPES[id][mask];
+export const connectSelection = (id, mask) => CONNECT_SELECT[id][mask];
+
 export const BLOCKS = DEFS.map((d, id) => ({
   ...d,
   id,
@@ -336,6 +473,7 @@ export function fluidBlock(type, level) {
 export function canSupportPlant(plantId, groundId) {
   const p = BLOCKS[plantId];
   if (p.onSand) return groundId === B.SAND;
+  if (p.mushroom) return OPAQUE[groundId] === 1 && SOLID[groundId] === 1;
   if (p.onFarmland) return groundId === B.FARMLAND;
   if (p.cane) return groundId === B.SUGAR_CANE || groundId === B.GRASS || groundId === B.DIRT || groundId === B.SAND;
   return groundId === B.GRASS || groundId === B.DIRT || groundId === B.SNOWY_GRASS || groundId === B.FARMLAND;

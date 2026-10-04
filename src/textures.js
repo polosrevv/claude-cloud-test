@@ -529,6 +529,115 @@ const GEN = {
   wool_lime(t, r) { wool(t, r, [110, 186, 46]); },
   wool_blue(t, r) { wool(t, r, [54, 72, 170]); },
   wool_black(t, r) { wool(t, r, [30, 30, 36]); },
+  wool_orange(t, r) { wool(t, r, [226, 128, 40]); },
+  wool_magenta(t, r) { wool(t, r, [186, 70, 186]); },
+  wool_light_blue(t, r) { wool(t, r, [96, 146, 214]); },
+  wool_pink(t, r) { wool(t, r, [228, 146, 170]); },
+  wool_gray(t, r) { wool(t, r, [66, 66, 70]); },
+  wool_light_gray(t, r) { wool(t, r, [152, 152, 156]); },
+  wool_cyan(t, r) { wool(t, r, [40, 128, 146]); },
+  wool_purple(t, r) { wool(t, r, [124, 56, 176]); },
+  wool_green(t, r) { wool(t, r, [70, 96, 30]); },
+  wool_brown(t, r) { wool(t, r, [104, 68, 40]); },
+  iron_bars(t, r) {
+    clear(t);
+    for (const x of [1, 5, 10, 14]) for (let y = 0; y < TILE; y++) put(t, x, y, mul(y % 5 === 0 ? [180, 182, 186] : [124, 126, 130], jitter(r, 0.05)));
+    for (const y of [0, 15]) for (let x = 0; x < TILE; x++) put(t, x, y, mul([110, 112, 116], jitter(r, 0.05)));
+  },
+  pumpkin_side(t, r) {
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const rib = x % 4 === 0 ? 0.78 : x % 4 === 2 ? 1.05 : 0.93;
+        put(t, x, y, mul([214, 120, 24], rib * jitter(r, 0.04)));
+      }
+    }
+  },
+  pumpkin_top(t, r) {
+    GEN.pumpkin_side(t, r);
+    rect(t, 6, 6, 9, 9, [96, 80, 30], r, 0.08);
+    rect(t, 7, 7, 8, 8, [70, 110, 30], r, 0.08);
+  },
+  pumpkin_face(t, r) {
+    GEN.pumpkin_side(t, r);
+    art(t, null, ['', '', '', '',
+      '...XX......XX...',
+      '...XXX....XXX...',
+      '................',
+      '.......XX.......',
+      '................',
+      '..XXXXXXXXXXXX..',
+      '..XX.XXXXXX.XX..',
+      '....XX....XX....',
+    ], { X: [66, 34, 10] });
+  },
+  jack_o_lantern_face(t, r) {
+    GEN.pumpkin_side(t, r);
+    art(t, null, ['', '', '', '',
+      '...XX......XX...',
+      '...XXX....XXX...',
+      '................',
+      '.......XX.......',
+      '................',
+      '..XXXXXXXXXXXX..',
+      '..XX.XXXXXX.XX..',
+      '....XX....XX....',
+    ], { X: [255, 226, 90] });
+  },
+  melon_side(t, r) {
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const stripe = (x + Math.floor(Math.sin(y * 0.8) * 1.2) + 16) % 4 < 2;
+        put(t, x, y, mul(stripe ? [96, 158, 40] : [148, 190, 52], jitter(r, 0.05)));
+      }
+    }
+  },
+  melon_top(t, r) {
+    noiseFill(t, r, [128, 176, 46], 0.06);
+    for (let a = 0; a < 6; a++) {
+      for (let k = 0; k < 8; k++) put(t, Math.round(7.5 + Math.cos(a) * k), Math.round(7.5 + Math.sin(a) * k), [92, 150, 36]);
+    }
+  },
+  ...Object.fromEntries(Array.from({ length: 8 }, (_, stage) => [`stem_${stage}`, (t, r) => {
+    clear(t);
+    const h = 2 + Math.round(stage * 1.7);
+    const c = stage === 7 ? [170, 160, 60] : [90 + stage * 8, 160, 50];
+    for (let k = 0; k < h; k++) put(t, 7 + (k % 5 === 4 ? 1 : 0), 15 - k, mul(c, jitter(r, 0.06)));
+    if (stage > 2) {
+      put(t, 6, 15 - Math.floor(h / 2), mul(c, 0.9));
+      put(t, 9, 14 - Math.floor(h / 3), mul(c, 0.9));
+    }
+  }])),
+  brown_mushroom(t, r) {
+    clear(t);
+    rect(t, 7, 9, 8, 14, [222, 206, 180], r, 0.04);
+    for (let y = 6; y <= 9; y++) for (let x = 4; x <= 11; x++) if (Math.hypot(x - 7.5, (y - 9) * 1.6) < 4.2) put(t, x, y, mul([150, 110, 80], jitter(r, 0.06)));
+  },
+  red_mushroom(t, r) {
+    clear(t);
+    rect(t, 7, 10, 8, 14, [226, 220, 204], r, 0.04);
+    for (let y = 5; y <= 10; y++) {
+      for (let x = 4; x <= 11; x++) {
+        if (Math.hypot(x - 7.5, (y - 9.5) * 1.1) < 4.6) put(t, x, y, (x + y * 3) % 7 === 0 ? [240, 236, 228] : mul([200, 32, 30], jitter(r, 0.06)));
+      }
+    }
+  },
+  cake_top(t, r) {
+    noiseFill(t, r, [244, 240, 236], 0.03);
+    for (let i = 0; i < 9; i++) put(t, 2 + ((r() * 12) | 0), 2 + ((r() * 12) | 0), [214, 40, 40]);
+  },
+  cake_side(t, r) {
+    clear(t);
+    rect(t, 0, 8, 15, 15, [176, 112, 64], r, 0.05);
+    rect(t, 0, 8, 15, 9, [244, 240, 236], r, 0.02);
+    for (let x = 0; x < TILE; x += 3) put(t, x, 10, [244, 240, 236]);
+  },
+  cake_inner(t, r) {
+    clear(t);
+    rect(t, 0, 8, 15, 15, [222, 186, 120], r, 0.06);
+    rect(t, 0, 8, 15, 9, [244, 240, 236], r, 0.02);
+    rect(t, 0, 12, 15, 12, [200, 50, 50], r, 0.05);
+  },
+  cake_bottom(t, r) { noiseFill(t, r, [176, 112, 64], 0.05); },
 
   // ----- added for survival -----
   lava(t, r) {

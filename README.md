@@ -26,7 +26,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
 
 - **Survival stats.** You have health, hunger and saturation, and air underwater. You take damage from falls, lava, fire, cactus, drowning, starving and the void. Armour soaks up damage. When you die, you drop your items and respawn at your bed or the world spawn.
 - **Mining.** Breaking times use Minecraft's formula. The right tool is faster, and harder blocks need a better pickaxe: stone for iron, iron for gold and diamond, diamond for obsidian. Tools wear out.
-- **Crafting.** There's a 2×2 grid in your inventory and a 3×3 grid at a crafting table, with 87 recipes. These include tools, armour, torches, beds, doors, buckets, bows and arrows, TNT, and eyes of ender. The screens work like Minecraft's: click to pick up or place, right-click to split or place one, shift-click to move a stack, and number keys to swap with the hotbar.
+- **Crafting.** There's a 2×2 grid in your inventory and a 3×3 grid at a crafting table, with 129 recipes. These include tools, armour, torches, beds, doors, stairs, fences and gates, glass panes, dyes for 16 colours of wool, buckets, bows and arrows, TNT, cake, and eyes of ender. The screens work like Minecraft's: click to pick up or place, right-click to split or place one, shift-click to move a stack, and number keys to swap with the hotbar.
 - **Furnaces** smelt ores, cook food and burn fuel while you're away. **Chests** store 27 stacks.
 - **Experience.** Orbs come from mobs you kill, ores you mine, animals you breed and furnaces you empty. They drift toward you and fill the XP bar, using Minecraft's level curve. You drop some of your experience when you die.
 - **Enchanting.** Mine lapis lazuli deep underground and build an enchanting table from a book, diamonds and obsidian. Each of its three offers costs levels and lapis. Bookshelves around the table raise the offers up to level 30. There are 19 enchantments, and each does what it does in Minecraft:
@@ -35,7 +35,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Bows: Power, Punch, Flame and Infinity.
   - Armour: Protection, Fire Protection, Feather Falling, Respiration and Aqua Affinity.
   - Enchanted items shimmer, and their tooltips list what they carry.
-- **Food.** You can eat bread, apples, golden apples, and raw or cooked meat. Rotten flesh and raw chicken might make you hungry. You can also drink milk.
+- **Food.** You can eat bread, apples, golden apples, raw or cooked meat, melon slices, pumpkin pie and mushroom stew, and drink milk. Rotten flesh and raw chicken might make you hungry. Cake is placed as a block and eaten a slice at a time.
 
 ### Mobs
 
@@ -66,7 +66,13 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Storms darken the sky enough for monsters to spawn by day. Lightning sets fires and hurts anything close.
   - Rain puts out fires and burning mobs, keeps zombies and skeletons from burning, waters farmland, and hurts endermen.
   - You can sleep through a thunderstorm.
-- **Things grow.** Wheat grows on watered farmland, saplings grow into trees, and grass spreads. Sugar cane and cactus grow taller. Leaves decay when their tree is cut down. Bone meal speeds all of this up.
+- **Things grow.** Wheat grows on watered farmland. Pumpkin and melon stems ripen and set fruit beside them. Saplings grow into trees, grass spreads, and mushrooms creep across dark ground. Sugar cane and cactus grow taller. Leaves decay when their tree is cut down. Bone meal speeds all of this up.
+- **Building blocks.**
+  - Stairs in oak, cobblestone, stone brick, brick and sandstone, which you can walk up.
+  - Fences, nether brick fences, glass panes and iron bars, which join up with their neighbours. Fences are too tall to jump.
+  - Fence gates that open and close.
+  - Wool in all 16 colours, pumpkins and jack o'lanterns, and melons.
+  - Pumpkins and melons grow wild; mushrooms grow in forests and the Nether.
 - **Working blocks:**
   - Doors open and close.
   - Beds set your spawn and skip the night when no monsters are close.
@@ -136,7 +142,7 @@ index.html            page, HUD, menus and game screens (HTML + CSS)
 src/main.js           app shell: title screen, world list, settings, input routing, saving
 src/game.js           one play session: the 20 TPS tick, the player, interaction, damage, dimensions
 src/ui.js             HUD, chat, inventory/crafting/furnace/chest screens, death and credits
-src/blocks.js         block registry (140 block states) and lookup tables
+src/blocks.js         block registry (219 block states), lookup tables and connecting shapes
 src/items.js          item registry: blocks, tools, armour, food, materials
 src/recipes.js        crafting and smelting recipes
 src/inventory.js      inventories, slot clicking, crafting grids, furnaces, loot

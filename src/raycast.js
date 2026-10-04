@@ -1,7 +1,8 @@
 // Voxel traversal (Amanatides & Woo): walks the grid cell by cell along a ray
 // and tests each cell's selection boxes, so torches, slabs and doors are hit
 // where they actually are. Returns the block and the face normal it entered.
-import { B, SELECTION, FLUID, FLUID_LEVEL } from './blocks.js';
+import { B, FLUID, FLUID_LEVEL } from './blocks.js';
+import { selectionAt } from './physics.js';
 
 const FULL = [[0, 0, 0, 1, 1, 1]];
 
@@ -56,7 +57,7 @@ export function raycast(world, origin, dir, maxDist, options = {}) {
   while (t <= maxDist) {
     const id = world.getBlock(x, y, z);
     if (id !== B.AIR) {
-      let boxes = SELECTION[id];
+      let boxes = selectionAt(world, x, y, z, id);
       if (options.fluids && FLUID[id] && FLUID_LEVEL[id] === 0) boxes = FULL;
       if (boxes && boxes.length) {
         const hit = hitBoxes(origin, dir, x, y, z, boxes, maxDist);

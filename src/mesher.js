@@ -12,7 +12,7 @@
 import { CHUNK, HEIGHT } from './constants.js';
 import {
   B, OPAQUE, RENDER_TYPE, RENDER, SELF_CULL, LEAVES, INSET, EMIT, ATTEN, FACE_TEX,
-  TRANSLUCENT, FLUID, FLUID_LEVEL, MODELS, SCROLL,
+  TRANSLUCENT, FLUID, FLUID_LEVEL, MODELS, SCROLL, CONNECT, connectMask, connectModel,
 } from './blocks.js';
 
 export const PAD = 8;
@@ -274,10 +274,10 @@ function cubeFaces(region, sky, blk, i, px, py, pz, id, out) {
 
 // Box models (torches, doors, beds, slabs...). Faces on the block boundary are
 // culled against opaque neighbours; inner faces always draw.
-function modelFaces(region, sky, blk, i, px, py, pz, id, out) {
+function modelFaces(region, sky, blk, i, px, py, pz, id, out, boxes = MODELS[id]) {
   const emissive = EMIT[id] > 0;
   const flags = SCROLL[id] ? 1 : 0;
-  for (const box of MODELS[id]) {
+  for (const box of boxes) {
     const [x0, y0, z0] = box.from;
     const [x1, y1, z1] = box.to;
     const lo = [Math.min(x0, x1), y0, Math.min(z0, z1)];
@@ -420,13 +420,22 @@ function crossFaces(region, sky, blk, i, px, py, pz, id, out) {
   }
 }
 
-function emitBlock(region, sky, blk, i, px, py, pz, id) {
+// itemMask: for icons, a fixed connection mask (an east-west fence or pane).
+function emitBlock(region, sky, blk, i, px, py, pz, id, itemMask = null) {
   const out = TRANSLUCENT[id] ? waterOut : solidOut;
   switch (RENDER_TYPE[id]) {
     case RENDER.CUBE: cubeFaces(region, sky, blk, i, px, py, pz, id, out); break;
     case RENDER.CROSS: crossFaces(region, sky, blk, i, px, py, pz, id, out); break;
     case RENDER.LIQUID: liquidFaces(region, sky, blk, i, px, py, pz, id, out); break;
-    case RENDER.MODEL: modelFaces(region, sky, blk, i, px, py, pz, id, out); break;
+    case RENDER.MODEL:
+      if (CONNECT[id]) {
+        // Fences and panes: arms toward whichever neighbours they join.
+        const mask = itemMask ?? connectMask(id, (dx, dz) => region[i + dx + dz * RW]);
+        modelFaces(region, sky, blk, i, px, py, pz, id, out, connectModel(id, mask));
+      } else {
+        modelFaces(region, sky, blk, i, px, py, pz, id, out);
+      }
+      break;
     default: break;
   }
 }
@@ -475,7 +484,7 @@ export function buildBlockItemMesh(id) {
   blockLight.fill(0);
   solidOut.quads = 0;
   waterOut.quads = 0;
-  emitBlock(region, skyLight, blockLight, i, 0, 0, 0, id);
+  emitBlock(region, skyLight, blockLight, i, 0, 0, 0, id, 2 | 8);
   const water = TRANSLUCENT[id] === 1;
   return {
     data: water ? waterOut.take() : solidOut.take(),

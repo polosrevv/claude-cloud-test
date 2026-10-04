@@ -79,6 +79,38 @@ shapeless('eye_of_ender', 1, ['ender_pearl', 'blaze_powder']);
 shaped('enchanting_table', 1, [' B ', 'DOD', 'OOO'], { B: 'book', D: 'diamond', O: 'obsidian' });
 shaped('lapis_block', 1, ['XXX', 'XXX', 'XXX'], { X: 'lapis_lazuli' });
 shaped('gold_ingot', 1, ['XXX', 'XXX', 'XXX'], { X: 'gold_nugget' });
+// Building blocks
+for (const [stairs, mat] of [['oak_stairs', '#planks'], ['cobblestone_stairs', 'cobblestone'], ['stone_brick_stairs', 'stone_bricks'], ['brick_stairs', 'bricks'], ['sandstone_stairs', 'sandstone']]) {
+  shaped(stairs, 4, ['X  ', 'XX ', 'XXX'], { X: mat });
+}
+shaped('oak_fence', 3, ['PSP', 'PSP'], { P: '#planks', S: 'stick' });
+shaped('nether_brick_fence', 6, ['NNN', 'NNN'], { N: 'nether_bricks' });
+shaped('oak_fence_gate', 1, ['SPS', 'SPS'], { P: '#planks', S: 'stick' });
+shaped('glass_pane', 16, ['GGG', 'GGG'], { G: 'glass' });
+shaped('iron_bars', 16, ['III', 'III'], { I: 'iron_ingot' });
+shaped('jack_o_lantern', 1, ['P', 'T'], { P: 'pumpkin', T: 'torch' });
+shapeless('pumpkin_seeds', 4, ['pumpkin']);
+shapeless('melon_seeds', 1, ['melon_slice']);
+shaped('melon', 1, ['MMM', 'MMM', 'MMM'], { M: 'melon_slice' });
+// Food
+shapeless('sugar', 1, ['sugar_cane']);
+shaped('bowl', 4, ['P P', ' P '], { P: '#planks' });
+shapeless('mushroom_stew', 1, ['bowl', 'brown_mushroom', 'red_mushroom']);
+shapeless('pumpkin_pie', 1, ['pumpkin', 'sugar', 'egg']);
+shaped('cake', 1, ['MMM', 'SES', 'WWW'], { M: 'milk_bucket', S: 'sugar', E: 'egg', W: 'wheat' });
+// Dyes and wool
+shapeless('orange_dye', 2, ['red_dye', 'yellow_dye']);
+shapeless('pink_dye', 2, ['red_dye', 'bone_meal']);
+shapeless('gray_dye', 2, ['ink_sac', 'bone_meal']);
+shapeless('light_gray_dye', 2, ['gray_dye', 'bone_meal']);
+shapeless('light_blue_dye', 2, ['lapis_lazuli', 'bone_meal']);
+shapeless('cyan_dye', 2, ['lapis_lazuli', 'green_dye']);
+shapeless('purple_dye', 2, ['lapis_lazuli', 'red_dye']);
+shapeless('magenta_dye', 2, ['purple_dye', 'pink_dye']);
+shapeless('lime_dye', 2, ['green_dye', 'bone_meal']);
+for (const [wool, dye] of [['orange', 'orange_dye'], ['magenta', 'magenta_dye'], ['light_blue', 'light_blue_dye'], ['lime', 'lime_dye'], ['pink', 'pink_dye'], ['gray', 'gray_dye'], ['light_gray', 'light_gray_dye'], ['cyan', 'cyan_dye'], ['purple', 'purple_dye'], ['blue', 'lapis_lazuli'], ['green', 'green_dye'], ['black', 'ink_sac']]) {
+  shapeless(`wool_${wool}`, 1, [dye, 'wool_white']);
+}
 shapeless('gold_nugget', 9, ['gold_ingot']);
 shapeless('lapis_lazuli', 9, ['lapis_block']);
 
@@ -99,12 +131,13 @@ export const SMELTING = {
   diamond_ore: 'diamond',
   nether_quartz_ore: 'quartz',
   lapis_ore: 'lapis_lazuli',
+  cactus: 'green_dye',
 };
 
 // Experience a furnace stores for each item it smelts, paid out when you take the result.
 export const SMELT_XP = {
   iron_ore: 0.7, gold_ore: 1, diamond_ore: 1, coal_ore: 0.1, lapis_ore: 0.2, nether_quartz_ore: 0.2,
-  sand: 0.1, cobblestone: 0.1, clay_ball: 0.3, oak_log: 0.15, birch_log: 0.15, spruce_log: 0.15,
+  sand: 0.1, cactus: 0.2, cobblestone: 0.1, clay_ball: 0.3, oak_log: 0.15, birch_log: 0.15, spruce_log: 0.15,
   porkchop: 0.35, beef: 0.35, chicken: 0.35, mutton: 0.35,
 };
 

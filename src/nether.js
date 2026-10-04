@@ -127,6 +127,9 @@ export function createNether(seed) {
               data[i] = B.GRAVEL;
             } else if (hash3(wx, y, wz, seed ^ 0xf1) < 0.004) {
               data[i + CHUNK * CHUNK] = B.FIRE;
+            } else if (hash3(wx, y, wz, seed ^ 0x3f2) < 0.006) {
+              // Mushrooms grow in the Nether's gloom.
+              data[i + CHUNK * CHUNK] = hash3(wx, y, wz, seed ^ 0x3f3) < 0.5 ? B.BROWN_MUSHROOM : B.RED_MUSHROOM;
             }
           }
           // Ceilings: glowstone clusters.

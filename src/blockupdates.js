@@ -276,6 +276,29 @@ export class BlockUpdater {
       }
     } else if (def.crop !== undefined && def.crop < 7) {
       if (light() >= 9 && Math.random() < 0.35) world.setBlock(x, y, z, B[`WHEAT_${def.crop + 1}`]);
+    } else if (def.stem) {
+      if (light() < 9 || Math.random() > 0.3) return;
+      if (def.stage < 7) {
+        world.setBlock(x, y, z, B[`${def.stem.toUpperCase()}_STEM_${def.stage + 1}`]);
+        return;
+      }
+      // A ripe stem sets one fruit on a free neighbouring block of earth.
+      const isFruit = (id2) => (def.stem === 'melon' ? id2 === B.MELON : BLOCKS[id2].key.startsWith('pumpkin_') && !BLOCKS[id2].stem);
+      if (SIDES.some(([dx, , dz]) => isFruit(world.getBlock(x + dx, y, z + dz)))) return;
+      const [dx, , dz] = SIDES[Math.floor(Math.random() * 4)];
+      const ground = world.getBlock(x + dx, y - 1, z + dz);
+      if (world.getBlock(x + dx, y, z + dz) !== B.AIR || !(ground === B.DIRT || ground === B.GRASS || ground === B.FARMLAND)) return;
+      world.setBlock(x + dx, y, z + dz, def.stem === 'melon' ? B.MELON : B[`PUMPKIN_${'NESW'[Math.floor(Math.random() * 4)]}`]);
+    } else if (def.mushroom) {
+      // Mushrooms creep across dark ground, a few to a patch.
+      if (game.lightAt(x, y, z) > 12 || Math.random() > 0.04) return;
+      let near = 0;
+      for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) for (let dy = -1; dy <= 1; dy++) if (world.getBlock(x + dx, y + dy, z + dz) === id) near++;
+      if (near >= 5) return;
+      const tx = x + Math.floor(Math.random() * 3) - 1;
+      const ty = y + Math.floor(Math.random() * 2) - Math.floor(Math.random() * 2);
+      const tz = z + Math.floor(Math.random() * 3) - 1;
+      if (world.getBlock(tx, ty, tz) === B.AIR && canSupportPlant(id, world.getBlock(tx, ty - 1, tz)) && game.lightAt(tx, ty, tz) <= 12) world.setBlock(tx, ty, tz, id);
     } else if (def.sapling) {
       if (light() >= 9 && Math.random() < 0.15) this.growTree(x, y, z, def.sapling);
     } else if (id === B.SUGAR_CANE || id === B.CACTUS) {

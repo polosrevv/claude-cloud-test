@@ -497,3 +497,49 @@ test('slimes come in three sizes and tamed wolves are remembered', () => {
   // Squid drift off when you leave, like hostile mobs.
   assert.equal(serializeEntity(createMob('squid', 0, 40, 0)), null);
 });
+
+test('fences and panes join their neighbours, and fences are too tall to jump', async () => {
+  const { connectMask, connectShapes } = await import('../src/blocks.js');
+  const { Player } = await import('../src/player.js');
+  const w = flatWorld(1, 10);
+  w.setBlock(2, 11, 2, B.OAK_FENCE);
+  w.setBlock(3, 11, 2, B.OAK_FENCE);
+  w.setBlock(2, 11, 1, B.STONE);
+  w.setBlock(1, 11, 2, B.GLASS_PANE);
+  const at = (x, z) => (dx, dz) => w.getBlock(x + dx, 11, z + dz);
+  assert.equal(connectMask(B.OAK_FENCE, at(2, 2)), 1 | 2, 'joins the stone to the north and the fence to the east, not the pane');
+  assert.equal(connectMask(B.GLASS_PANE, at(1, 2)), 0, 'panes only join solid cubes and other panes');
+  assert.equal(connectShapes(B.OAK_FENCE, 0)[0][4], 1.5);
+  // A row of fence across the path stops a jumping player.
+  for (let z = -6; z <= 6; z++) w.setBlock(6, 11, z, B.OAK_FENCE);
+  const p = new Player();
+  p.teleport(4.5, 11, 0.5);
+  p.yaw = -Math.PI / 2;
+  for (let i = 0; i < 180; i++) p.update(1 / 60, { forward: 1, strafe: 0, jump: true, sneak: false, sprint: false }, w);
+  // The post's face is at x = 6.375, so the player's centre stops 0.3 short of it.
+  assert.ok(p.pos[0] < 6.1, `got over the fence to x=${p.pos[0]}`);
+});
+
+test('cake crafting hands back the milk buckets', () => {
+  const grid = new Inventory(9);
+  const put = (i, item) => { grid.slots[i] = { item, count: 1, damage: 0 }; };
+  [0, 1, 2].forEach((i) => put(i, 'milk_bucket'));
+  put(3, 'sugar'); put(4, 'egg'); put(5, 'sugar');
+  [6, 7, 8].forEach((i) => put(i, 'wheat'));
+  assert.deepEqual(takeCraft(grid, 3), { item: 'cake', count: 1, damage: 0 });
+  assert.deepEqual(grid.slots.map((s) => s?.item ?? null), ['bucket', 'bucket', 'bucket', null, null, null, null, null, null]);
+});
+
+test('ripe stems set fruit beside them', () => {
+  const w = flatWorld(1, 10);
+  const sim = blockSim(w);
+  w.setBlock(4, 10, 4, B.FARMLAND);
+  w.setBlock(4, 11, 4, B.PUMPKIN_STEM_7);
+  w.setBlock(5, 10, 4, B.WATER);
+  for (const [x, z] of [[3, 4], [4, 3], [4, 5]]) w.setBlock(x, 10, z, B.DIRT);
+  for (let i = 0; i < 300; i++) sim.updater.randomTick(4, 11, 4, B.PUMPKIN_STEM_7, w.getChunk(0, 0));
+  let fruit = 0;
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (BLOCKS[w.getBlock(4 + dx, 11, 4 + dz)].key.startsWith('pumpkin_')) fruit++;
+  assert.equal(fruit, 1, 'exactly one pumpkin');
+  assert.equal(w.getBlock(4, 11, 4), B.PUMPKIN_STEM_7, 'the stem stays');
+});

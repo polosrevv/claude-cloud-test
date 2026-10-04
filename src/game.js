@@ -999,6 +999,24 @@ export class Game {
       case 'bed':
         this.trySleep(t);
         return true;
+      case 'gate': {
+        const f = 'NESW'[def.facing];
+        world.setBlock(t.x, t.y, t.z, B[`OAK_FENCE_GATE_${f}${def.gate.open ? '' : '_OPEN'}`]);
+        this.sound('door', [t.x, t.y, t.z]);
+        return true;
+      }
+      case 'cake': {
+        // A slice of cake: two hunger points, whenever you have room for it.
+        const p = this.player;
+        if (p.vulnerable && p.food >= 20) return false;
+        if (p.vulnerable) {
+          p.food = Math.min(20, p.food + 2);
+          p.saturation = Math.min(p.food, p.saturation + 0.4);
+        }
+        world.setBlock(t.x, t.y, t.z, def.cake >= 6 ? B.AIR : B[`CAKE_${def.cake + 1}`]);
+        this.sound('eat', p.pos, 0.7);
+        return true;
+      }
       case 'enchant':
         this.openScreen('enchant', { x: t.x, y: t.y, z: t.z, slots: [null, null] });
         return true;
@@ -1219,6 +1237,8 @@ export class Game {
         const def = BLOCKS[id];
         if (def.crop !== undefined && def.crop < 7) {
           world.setBlock(t.x, t.y, t.z, B[`WHEAT_${Math.min(7, def.crop + 2 + Math.floor(Math.random() * 3))}`]);
+        } else if (def.stem && def.stage < 7) {
+          world.setBlock(t.x, t.y, t.z, B[`${def.stem.toUpperCase()}_STEM_${Math.min(7, def.stage + 2 + Math.floor(Math.random() * 3))}`]);
         } else if (def.sapling) {
           if (Math.random() < 0.45) this.updater.growTree(t.x, t.y, t.z, def.sapling);
         } else if (id === B.GRASS) {
@@ -1278,6 +1298,9 @@ export class Game {
       if (id === B.TORCH && !SOLID[world.getBlock(x, y - 1, z)]) return false;
     } else if (item.place === 'facing') {
       id = facingBlock(item.block, facingTowardViewer(p.yaw));
+    } else if (item.place === 'look') {
+      // Stairs rise and gates span across the way you're looking.
+      id = facingBlock(item.block, facingOfLook(p.yaw));
     } else if (item.place === 'ladder') {
       if (n[1] !== 0) return false;
       id = facingBlock('ladder', [[0, 0, -1], [1, 0, 0], [0, 0, 1], [-1, 0, 0]].findIndex((d) => sameDir(d, n)));
@@ -1291,6 +1314,7 @@ export class Game {
       const [dx, dz] = FACING_DIR[def.facing];
       if (!SOLID[world.getBlock(x - dx, y, z - dz)]) return false;
     }
+    if (def.needsSupport === 'below' && !SOLID[world.getBlock(x, y - 1, z)]) return false;
     world.setBlock(x, y, z, id);
     if (def.entity === 'furnace') world.blockEntities.set(posKey(x, y, z), newFurnace());
     if (def.entity === 'chest') world.blockEntities.set(posKey(x, y, z), { type: 'chest', slots: new Array(27).fill(null) });

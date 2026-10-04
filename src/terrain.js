@@ -311,8 +311,12 @@ function createOverworld(seed) {
         let id = B.AIR;
         if (ground === B.GRASS) {
           if (biome === BIOME.PLAINS) id = p < 0.16 ? B.TALL_GRASS : p < 0.18 ? B.POPPY : p < 0.2 ? B.DANDELION : B.AIR;
-          else if (biome === BIOME.FOREST) id = p < 0.08 ? B.TALL_GRASS : p < 0.09 ? B.POPPY : p < 0.1 ? B.DANDELION : B.AIR;
+          else if (biome === BIOME.FOREST) id = p < 0.08 ? B.TALL_GRASS : p < 0.09 ? B.POPPY : p < 0.1 ? B.DANDELION : p < 0.104 ? B.BROWN_MUSHROOM : p < 0.106 ? B.RED_MUSHROOM : B.AIR;
           else if (p < 0.06) id = B.TALL_GRASS;
+          // Rare patches of pumpkins on grassland, and melons in the forest.
+          if ((biome === BIOME.PLAINS || biome === BIOME.FOREST) && hash2((x0 + lx) >> 3, (z0 + lz) >> 3, plantSeed ^ 0x5eed) < 0.03 && p > 0.9) {
+            id = biome === BIOME.FOREST && p > 0.97 ? B.MELON : B[`PUMPKIN_${'NESW'[Math.floor(p * 400) % 4]}`];
+          }
         } else if (ground === B.SAND && biome === BIOME.DESERT && p < 0.012) {
           id = B.DEAD_BUSH;
         }

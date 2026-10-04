@@ -50,6 +50,15 @@ for (const [key, name, extra] of [
   ['furnace', 'Furnace', { place: 'facing', block: 'furnace' }],
   ['chest', 'Chest', { place: 'facing', block: 'chest' }],
   ['ladder', 'Ladder', { place: 'ladder', flatBlock: 'ladder_n' }],
+  ['pumpkin', 'Pumpkin', { place: 'facing', block: 'pumpkin' }],
+  ['jack_o_lantern', "Jack o'Lantern", { place: 'facing', block: 'jack_o_lantern' }],
+  ['oak_stairs', 'Oak Stairs', { place: 'look', block: 'oak_stairs' }],
+  ['cobblestone_stairs', 'Cobblestone Stairs', { place: 'look', block: 'cobblestone_stairs' }],
+  ['stone_brick_stairs', 'Stone Brick Stairs', { place: 'look', block: 'stone_brick_stairs' }],
+  ['brick_stairs', 'Brick Stairs', { place: 'look', block: 'brick_stairs' }],
+  ['sandstone_stairs', 'Sandstone Stairs', { place: 'look', block: 'sandstone_stairs' }],
+  ['oak_fence_gate', 'Oak Fence Gate', { place: 'look', block: 'oak_fence_gate' }],
+  ['cake', 'Cake', { block: 'cake_0', maxStack: 1, tab: 'food' }],
 ]) {
   if (!ITEMS[key]) add(key, { name, tab: 'blocks', ...extra });
 }
@@ -110,7 +119,10 @@ food('cooked_chicken', 'Cooked Chicken', 6, 7.2);
 food('mutton', 'Raw Mutton', 2, 1.2);
 food('cooked_mutton', 'Cooked Mutton', 6, 9.6);
 food('rotten_flesh', 'Rotten Flesh', 4, 0.8, { poison: 0.8 });
-add('milk_bucket', { name: 'Milk Bucket', maxStack: 1, tab: 'food', food: { hunger: 0, saturation: 0, always: true, drink: true, cures: true, returns: 'bucket' } });
+food('melon_slice', 'Melon Slice', 2, 1.2);
+food('pumpkin_pie', 'Pumpkin Pie', 8, 4.8);
+add('mushroom_stew', { name: 'Mushroom Stew', maxStack: 1, tab: 'food', food: { hunger: 6, saturation: 7.2, returns: 'bowl' } });
+add('milk_bucket', { remainder: 'bucket', name: 'Milk Bucket', maxStack: 1, tab: 'food', food: { hunger: 0, saturation: 0, always: true, drink: true, cures: true, returns: 'bucket' } });
 
 // ---- Materials ----
 const mat = (key, name, extra = {}) => add(key, { name, ...extra });
@@ -130,6 +142,13 @@ mat('leather', 'Leather');
 mat('brick', 'Brick');
 mat('clay_ball', 'Clay Ball');
 mat('lapis_lazuli', 'Lapis Lazuli');
+for (const [color, name] of [['orange', 'Orange'], ['magenta', 'Magenta'], ['light_blue', 'Light Blue'], ['lime', 'Lime'], ['pink', 'Pink'], ['gray', 'Gray'], ['light_gray', 'Light Gray'], ['cyan', 'Cyan'], ['purple', 'Purple'], ['green', 'Green']]) {
+  mat(`${color}_dye`, `${name} Dye`);
+}
+mat('sugar', 'Sugar');
+mat('bowl', 'Bowl', { fuel: 0.5 });
+mat('pumpkin_seeds', 'Pumpkin Seeds', { use: 'plant', plants: 'pumpkin_stem_0', tab: 'nature' });
+mat('melon_seeds', 'Melon Seeds', { use: 'plant', plants: 'melon_stem_0', tab: 'nature' });
 mat('gold_nugget', 'Gold Nugget');
 mat('ghast_tear', 'Ghast Tear');
 mat('slimeball', 'Slimeball');
@@ -164,6 +183,8 @@ for (const key of order) {
     item.layer = textureIndex(item.texName);
   } else if (item.block && !item.flat) {
     item.layer = -1;
+  } else if (item.block && item.flat && !B[item.block.toUpperCase()]) {
+    item.layer = -1;
   } else if (item.block && item.flat) {
     item.layer = textureIndex(BLOCKS[B[item.block.toUpperCase()]].tex);
   } else if (['furnace', 'chest'].includes(key)) {
@@ -171,9 +192,10 @@ for (const key of order) {
   } else {
     item.layer = textureIndex(`item_${key}`);
   }
-  item.blockId = item.block ? B[item.block.toUpperCase()] : undefined;
+  // Families of facing blocks (furnaces, stairs, pumpkins) show their south-facing state.
+  item.blockId = item.block ? B[item.block.toUpperCase()] ?? B[`${item.block}_s`.toUpperCase()] : undefined;
   // The block drawn for this item's icon and in the hand.
-  item.displayId = { furnace: B.FURNACE_S, chest: B.CHEST_S }[key] ?? item.blockId;
+  item.displayId = item.blockId;
   if (item.tool && !item.durability) item.durability = item.tool.durability;
   if (item.armor && !item.durability) item.durability = item.armor.durability;
 }

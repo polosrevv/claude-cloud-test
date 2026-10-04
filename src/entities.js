@@ -1,7 +1,7 @@
 // Entities: dropped items, projectiles, primed TNT, end crystals and mobs.
 // Everything ticks at 20 per second; the renderer interpolates between ticks.
-import { SOLID, FLUID, COLLISION } from './blocks.js';
-import { moveBody, boxesOverlap } from './physics.js';
+import { SOLID, FLUID } from './blocks.js';
+import { moveBody, boxesOverlap, shapesAt } from './physics.js';
 import { canStack, clone } from './inventory.js';
 import { maxStack } from './items.js';
 import { MOBS, tickMob, createMob, createSlime } from './mobs.js';
@@ -119,7 +119,7 @@ function segmentHitsBlock(world, from, to) {
     const y = Math.floor(from[1] + dir[1] * t);
     const z = Math.floor(from[2] + dir[2] * t);
     const id = world.getBlock(x, y, z);
-    const shapes = COLLISION[id];
+    const shapes = shapesAt(world, x, y, z, id);
     if (!shapes) continue;
     for (const sh of shapes) {
       const hit = rayBox(from, dir, [x + sh[0], y + sh[1], z + sh[2], x + sh[3], y + sh[4], z + sh[5]], len);

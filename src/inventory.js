@@ -211,7 +211,9 @@ export function takeCraft(grid, size) {
     const s = grid.slots[i];
     if (!s) continue;
     s.count -= 1;
-    if (s.count <= 0) grid.slots[i] = null;
+    // Buckets of milk leave their buckets behind.
+    const left = ITEMS[s.item]?.remainder;
+    if (s.count <= 0) grid.slots[i] = left ? { item: left, count: 1, damage: 0 } : null;
   }
   return { item: r.item, count: r.count, damage: 0 };
 }
