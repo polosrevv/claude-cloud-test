@@ -1,5 +1,7 @@
-// Isometric inventory icons drawn from the same procedural textures.
-import { BLOCKS, RENDER_TYPE, RENDER, FACE_TEX, FACE } from './blocks.js';
+// Inventory icons drawn from the same procedural textures: isometric cubes for
+// blocks, flat sprites for everything else. Also the HUD's hearts and food.
+import { RENDER_TYPE, RENDER, FACE_TEX, FACE } from './blocks.js';
+import { ITEMS } from './items.js';
 import { TEXTURE_NAMES, TILE } from './textures.js';
 
 const SIZE = 64;
@@ -13,7 +15,7 @@ export function createIconFactory(textures) {
   });
   const cache = new Map();
 
-  function draw(id) {
+  function blockIcon(id) {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = SIZE;
     const g = canvas.getContext('2d');
@@ -44,12 +46,67 @@ export function createIconFactory(textures) {
     return canvas.toDataURL();
   }
 
-  return function icon(id) {
-    if (!cache.has(id)) cache.set(id, draw(id));
-    return cache.get(id);
+  function spriteIcon(layer) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = SIZE;
+    const g = canvas.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.drawImage(tiles[layer], 4, 4, 56, 56);
+    return canvas.toDataURL();
+  }
+
+  return function icon(key) {
+    if (!cache.has(key)) {
+      const item = ITEMS[key];
+      let url = '';
+      if (item) url = item.layer >= 0 ? spriteIcon(item.layer) : blockIcon(item.displayId);
+      cache.set(key, url);
+    }
+    return cache.get(key);
   };
 }
 
-export function blockName(id) {
-  return BLOCKS[id]?.name ?? '';
+// 9x9 pixel HUD icons, scaled up crisply by CSS.
+const HEART = ['.##...##.', '#hh#.#hh#', '#hHHHHHh#', '#HHHHHHH#', '.#HHHHH#.', '..#HHH#..', '...#H#...', '....#....'];
+const FOOD = ['......##.', '.....#ww#', '....#ww#.', '..##bb#..', '.#bbBb#..', '#bbBBb#..', '#bBBb#...', '.###.....'];
+const ARMOR = ['.##...##.', '#ss#.#ss#', '#sssssss#', '#sSsssSs#', '.#sssss#.', '.#sSSSs#.', '..#sss#..', '...###...'];
+const BUBBLE = ['..###..', '.#wbb#.', '#wbbbb#', '#bbbbb#', '#bbbbb#', '.#bbb#.', '..###..'];
+
+function drawPixels(rows, palette, half = null) {
+  const w = rows[0].length;
+  const h = rows.length;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d');
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      let col = palette[row[x]];
+      if (!col) continue;
+      if (half === 'left' && x >= Math.ceil(w / 2) && row[x] !== '#') col = palette.empty;
+      if (half === 'empty' && row[x] !== '#') col = palette.empty;
+      g.fillStyle = col;
+      g.fillRect(x, y, 1, 1);
+    }
+  });
+  return c.toDataURL();
+}
+
+export function hudIcons() {
+  const heart = { '#': '#1a0505', h: '#ff8a8a', H: '#d61f1f', empty: '#3a1414' };
+  const food = { '#': '#2a1606', w: '#f3efe3', b: '#c9813a', B: '#8f5220', empty: '#3b2814' };
+  const armor = { '#': '#202226', s: '#d7dbe0', S: '#9aa1aa', empty: '#2b2e33' };
+  const bubble = { '#': '#123a6b', w: '#ffffff', b: '#6fb2ff' };
+  return {
+    heart: drawPixels(HEART, heart),
+    heartHalf: drawPixels(HEART, heart, 'left'),
+    heartEmpty: drawPixels(HEART, heart, 'empty'),
+    food: drawPixels(FOOD, food),
+    foodHalf: drawPixels(FOOD, food, 'left'),
+    foodEmpty: drawPixels(FOOD, food, 'empty'),
+    armor: drawPixels(ARMOR, armor),
+    armorHalf: drawPixels(ARMOR, armor, 'left'),
+    armorEmpty: drawPixels(ARMOR, armor, 'empty'),
+    bubble: drawPixels(BUBBLE, bubble),
+  };
 }

@@ -16,8 +16,11 @@ export class Input {
     this.drag = null;
 
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
-    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => this.keys.clear());
+    window.addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') this.sprintTap = false;
+    });
+    window.addEventListener('blur', () => { this.keys.clear(); this.sprintTap = false; });
 
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === canvas;
@@ -56,6 +59,12 @@ export class Input {
     if (e.target instanceof HTMLInputElement) return;
     const handled = this.h.onKey(e.code, e);
     if (handled || ['Space', 'Tab', 'F3', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+    // Double-tapping forward sprints until forward is let go, as in Minecraft.
+    if ((e.code === 'KeyW' || e.code === 'ArrowUp') && !e.repeat) {
+      const now = performance.now();
+      if (now - (this.lastForward ?? -1e9) < 300) this.sprintTap = true;
+      this.lastForward = now;
+    }
     this.keys.add(e.code);
   }
 
@@ -122,7 +131,7 @@ export class Input {
       strafe,
       jump: k.has('Space') || this.touchJump,
       sneak: k.has('ShiftLeft') || k.has('ShiftRight') || this.touchSneak,
-      sprint: k.has('ControlLeft') || k.has('ControlRight') || (this.mode === 'touch' && -this.stick.y > 0.92),
+      sprint: k.has('ControlLeft') || k.has('ControlRight') || this.sprintTap || (this.mode === 'touch' && -this.stick.y > 0.92),
     };
   }
 
@@ -172,5 +181,7 @@ export class Input {
     hold('#t-fly', () => actions.fly());
     hold('#t-blocks', () => actions.inventory());
     hold('#t-pause', () => actions.pause());
+    hold('#t-drop', () => actions.drop());
+    hold('#t-chat', () => actions.chat());
   }
 }

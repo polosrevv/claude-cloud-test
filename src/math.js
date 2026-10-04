@@ -36,9 +36,11 @@ export function translation(x, y, z) {
   return m;
 }
 
-export function scaling(s) {
+export function scaling(s, sy = s, sz = s) {
   const m = identity();
-  m[0] = m[5] = m[10] = s;
+  m[0] = s;
+  m[5] = sy;
+  m[10] = sz;
   return m;
 }
 
