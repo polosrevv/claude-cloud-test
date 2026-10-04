@@ -385,6 +385,10 @@ function wolfModel(skin) {
   };
 }
 
+// Variants that share a body with another mob.
+MODEL_DEFS.magma_cube = { ...MODEL_DEFS.slime, skin: 'magma_cube' };
+MODEL_DEFS.wither_skeleton = { ...MODEL_DEFS.skeleton, skin: 'wither_skeleton' };
+
 function quadAnim(e, t, out) {
   const s = walk(e);
   out.head = { rot: [e.headPitch + (e.eating ? 0.9 : 0), e.headYaw, 0] };

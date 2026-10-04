@@ -26,7 +26,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
 
 - **Survival stats.** You have health, hunger and saturation, and air underwater. You take damage from falls, lava, fire, cactus, drowning, starving and the void. Armour soaks up damage. When you die, you drop your items and respawn at your bed or the world spawn.
 - **Mining.** Breaking times use Minecraft's formula. The right tool is faster, and harder blocks need a better pickaxe: stone for iron, iron for gold and diamond, diamond for obsidian. Tools wear out.
-- **Crafting.** There's a 2×2 grid in your inventory and a 3×3 grid at a crafting table, with 129 recipes. These include tools, armour, torches, beds, doors, stairs, fences and gates, glass panes, dyes for 16 colours of wool, buckets, bows and arrows, TNT, cake, and eyes of ender. The screens work like Minecraft's: click to pick up or place, right-click to split or place one, shift-click to move a stack, and number keys to swap with the hotbar.
+- **Crafting.** There's a 2×2 grid in your inventory and a 3×3 grid at a crafting table, with 138 recipes. These include tools, armour, torches, beds, doors, stairs, fences and gates, glass panes, dyes for 16 colours of wool, buckets, bows and arrows, TNT, cake, brewing stands, and eyes of ender. The screens work like Minecraft's: click to pick up or place, right-click to split or place one, shift-click to move a stack, and number keys to swap with the hotbar.
 - **Furnaces** smelt ores, cook food and burn fuel while you're away. **Chests** store 27 stacks.
 - **Experience.** Orbs come from mobs you kill, ores you mine, animals you breed and furnaces you empty. They drift toward you and fill the XP bar, using Minecraft's level curve. You drop some of your experience when you die.
 - **Enchanting.** Mine lapis lazuli deep underground and build an enchanting table from a book, diamonds and obsidian. Each of its three offers costs levels and lapis. Bookshelves around the table raise the offers up to level 30. There are 19 enchantments, and each does what it does in Minecraft:
@@ -36,8 +36,13 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Armour: Protection, Fire Protection, Feather Falling, Respiration and Aqua Affinity.
   - Enchanted items shimmer, and their tooltips list what they carry.
 - **Fishing.** Cast a rod into water and reel in when the bobber dips. You'll mostly catch cod and salmon, sometimes junk, and now and then an enchanted bow or rod. Fish bite faster in the rain.
+- **Brewing.** Build a brewing stand from a blaze rod and cobblestone, and fuel it with blaze powder (one powder lasts 20 brews). Fill glass bottles at any water. Brew them with nether wart, which grows on soul sand in nether fortresses, to make awkward potions, then add an ingredient:
+  - Sugar for Swiftness, blaze powder for Strength, a ghast tear for Regeneration, a glistering melon for Healing, a spider eye for Poison, and magma cream for Fire Resistance.
+  - Glowstone dust makes a potion stronger (level II). A fermented spider eye corrupts it: Swiftness becomes Slowness, and Healing or Poison becomes Harming. Gunpowder turns any potion into a splash potion you can throw.
+  - There are 31 potions. Splash potions affect everything within four blocks, and Healing hurts the undead while Harming heals them.
+- **Status effects.** Speed, Slowness, Strength, Weakness, Regeneration, Poison, Wither, Fire Resistance, Hunger and instant Healing and Harming. Active effects and their timers are listed at the top right of the screen. Milk clears them, and so does dying.
 - **Boats.** Put one on the water, right-click to get in, row with W and S, turn with A and D, and sneak to get out. Punch a boat to break it back into an item.
-- **Food.** You can eat bread, apples, golden apples, raw or cooked meat and fish, melon slices, pumpkin pie and mushroom stew, and drink milk. Rotten flesh and raw chicken might make you hungry. Cake is placed as a block and eaten a slice at a time.
+- **Food.** You can eat bread, apples, golden apples, raw or cooked meat and fish, melon slices, pumpkin pie and mushroom stew, and drink milk. Rotten flesh and raw chicken might give you Hunger, spider eyes poison you, and golden apples give you Regeneration. Cake is placed as a block and eaten a slice at a time.
 
 ### Mobs
 
@@ -49,6 +54,8 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Zombie pigmen, which fill the Nether and leave you alone until you hit one, and then the whole group comes for you. Lightning turns pigs into pigmen.
   - Ghasts, which drift through the Nether's open caverns and fire explosive fireballs. Hit a fireball to bat it back.
   - Blazes in Nether fortresses, which fly and shoot fireballs.
+  - Wither skeletons, tall black skeletons with stone swords that guard fortresses. Their hits give you Wither.
+  - Magma cubes, the Nether's fireproof slimes, which leap higher and split when killed, and sometimes drop magma cream.
   - The Ender Dragon.
 - **AI.** Monsters spawn in the dark, path around obstacles with A\*, and burn in sunlight.
 
@@ -85,9 +92,9 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Sand and gravel fall. Torches and ladders need a wall.
 - **The Nether.**
   - You get there by building a 4×5 obsidian frame and lighting it with flint and steel. Distances there are scaled 8 to 1, and the game builds a portal for you on the far side if there isn't one.
-  - Inside: netherrack, soul sand, glowstone, lava seas and nether fortresses.
+  - Inside: netherrack, soul sand, glowstone, lava seas and nether fortresses. Each fortress hall has a blaze spawner, a loot chest and beds of nether wart.
 - **The End.** It has the end stone island, obsidian pillars topped with end crystals that heal the dragon, the dragon fight, the exit portal, the dragon egg and the credits.
-- **Advancements.** 29 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
+- **Advancements.** 30 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
 
 ### Engine
 
@@ -105,7 +112,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
 | `Space` | Jump; double-tap to fly in Creative |
 | `Shift` | Sneak (you won't walk off ledges), or fly down |
 | Left click | Attack, or hold to mine |
-| Right click | Use: place a block, eat, open a door or chest, draw a bow, pour a bucket, sleep |
+| Right click | Use: place a block, eat or drink, open a door or chest, draw a bow, throw a splash potion, pour a bucket, sleep |
 | Middle click | Pick the targeted block |
 | `1` to `9`, mouse wheel | Select a hotbar slot |
 | `E` | Inventory (in Creative, the item catalogue) |
@@ -133,6 +140,7 @@ Commands work in worlds created with cheats on. Coordinates accept `~` for "rela
 | `/summon <mob> [x y z]` | Spawn a mob |
 | `/xp <amount>[L]`, `/xp add\|set <amount> [levels\|points]` | Give yourself experience |
 | `/enchant <enchantment> [level]` | Enchant the item in your hand |
+| `/effect give <effect> [seconds] [amplifier]`, `/effect clear` | Give yourself a status effect (amplifier 0 is level I), or clear them all |
 | `/kill [@e\|@e[type=<mob>]]` | Kill yourself, or all mobs |
 | `/setblock`, `/fill` | Place one block, or fill a box |
 | `/clear`, `/heal`, `/spawnpoint` | Inventory, health and spawn helpers |
@@ -147,12 +155,13 @@ index.html            page, HUD, menus and game screens (HTML + CSS)
 src/main.js           app shell: title screen, world list, settings, input routing, saving
 src/game.js           one play session: the 20 TPS tick, the player, interaction, damage, dimensions
 src/ui.js             HUD, chat, inventory/crafting/furnace/chest screens, death and credits
-src/blocks.js         block registry (219 block states), lookup tables and connecting shapes
+src/blocks.js         block registry (226 block states), lookup tables and connecting shapes
 src/items.js          item registry: blocks, tools, armour, food, materials
 src/recipes.js        crafting and smelting recipes
 src/inventory.js      inventories, slot clicking, crafting grids, furnaces, loot
 src/drops.js          breaking times, harvest rules, block drops and ore experience
 src/enchantments.js   enchantments, the enchanting table's offers and the experience curve
+src/effects.js        status effects, potions and the brewing chart
 src/terrain.js        Overworld generation; src/nether.js and src/end.js for the other dimensions
 src/structures.js     trees, dungeons, strongholds and nether fortresses
 src/village.js        village layout and buildings; src/villagers.js holds professions and trades
@@ -178,7 +187,7 @@ src/audio.js          synthesized sound effects
 
 - **Chunks.** The world is split into 16×16×128 chunks. Generation is a pure function of the seed and the coordinates, so chunks can be built in any order on any worker. Trees and structures that straddle chunk borders still line up.
 - **Meshing.** To mesh a chunk, the main thread copies it plus an 8-block border from its neighbours into a "region" and hands that to a worker. The worker floods sunlight and block light through the region, then emits only the faces that touch air. Each vertex is 16 bytes: position, texture layer, light and AO.
-- **The tick.** The game runs a fixed 20 ticks per second, as Minecraft does, and interpolates between ticks when drawing. Mobs, fluids, furnaces, crops and the dragon all live on the tick.
+- **The tick.** The game runs a fixed 20 ticks per second, as Minecraft does, and interpolates between ticks when drawing. Mobs, fluids, furnaces, brewing stands, status effects, crops and the dragon all live on the tick.
 - **Edits.** Player edits are stored per chunk and re-applied whenever a chunk regenerates, so the world can stream in and out freely. Entities in chunks that unload are parked and come back when the chunk does.
 
 ## Tests
@@ -190,4 +199,4 @@ npm test
 The tests use Node's built-in test runner. They cover:
 
 - **World:** terrain determinism in all three dimensions, structures, cross-chunk trees, meshing and culling, lighting, raycasting, saving edits, and player physics.
-- **Rules:** recipes, inventory clicking, furnaces, mining speeds and harvest tiers, flowing water and lava, falling blocks, crop and tree growth, portals, pathfinding, weather, enchanting and experience, advancements and commands.
+- **Rules:** recipes, inventory clicking, furnaces, mining speeds and harvest tiers, flowing water and lava, falling blocks, crop and tree growth, portals, pathfinding, weather, enchanting and experience, brewing and status effects, advancements and commands.

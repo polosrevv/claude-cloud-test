@@ -252,6 +252,18 @@ def({ key: 'brown_mushroom', name: 'Brown Mushroom', tex: 'brown_mushroom', ...p
 def({ key: 'red_mushroom', name: 'Red Mushroom', tex: 'red_mushroom', ...plant, mushroom: true });
 def({ key: 'emerald_ore', name: 'Emerald Ore', tex: 'emerald_ore', ...stoneLike({ hardness: 3, tier: 2, drops: 'emerald' }) });
 def({ key: 'emerald_block', name: 'Block of Emerald', tex: 'emerald_block', ...stoneLike({ hardness: 5, tier: 2, resistance: 6 }) });
+for (let stage = 0; stage < 4; stage++) {
+  def({ key: `nether_wart_${stage}`, name: 'Nether Wart', tex: `nether_wart_${stage}`, ...plant, hidden: true, item: 'nether_wart', wart: stage, onSoulSand: true, drops: stage === 3 ? { item: 'nether_wart', min: 2, max: 4 } : 'nether_wart' });
+}
+def({
+  key: 'brewing_stand', name: 'Brewing Stand', tex: { top: 'brewing_stand_base', bottom: 'brewing_stand_base', side: 'brewing_stand_base' },
+  render: RENDER.MODEL, model: [
+    { from: [1, 0, 1], to: [7, 2, 7] }, { from: [9, 0, 2], to: [15, 2, 8] }, { from: [3, 0, 9], to: [9, 2, 15] },
+    { from: [7, 0, 7], to: [9, 14, 9], tex: 'brewing_stand_rod' },
+  ],
+  collision: [[1 / 16, 0, 1 / 16, 15 / 16, 2 / 16, 15 / 16], [7 / 16, 0, 7 / 16, 9 / 16, 14 / 16, 9 / 16]],
+  opaque: false, emit: 1, ...stoneLike({ hardness: 0.5 }), use: 'brewing', entity: 'brewing',
+});
 // Cake: seven slices, eaten one right-click at a time.
 for (let bites = 0; bites < 7; bites++) {
   const x0 = 1 + bites * 2;
@@ -475,6 +487,7 @@ export function fluidBlock(type, level) {
 export function canSupportPlant(plantId, groundId) {
   const p = BLOCKS[plantId];
   if (p.onSand) return groundId === B.SAND;
+  if (p.onSoulSand) return groundId === B.SOUL_SAND;
   if (p.mushroom) return OPAQUE[groundId] === 1 && SOLID[groundId] === 1;
   if (p.onFarmland) return groundId === B.FARMLAND;
   if (p.cane) return groundId === B.SUGAR_CANE || groundId === B.GRASS || groundId === B.DIRT || groundId === B.SAND;

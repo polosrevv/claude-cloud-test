@@ -13,6 +13,7 @@ import { PlayerInventory, newFurnace, tickFurnace } from './inventory.js';
 import { EntityManager, itemEntity, xpOrb, projectile, primedTnt, boat, bobber, serializeEntity, deserializeEntity } from './entities.js';
 import { MOBS, hurtMob, createMob } from './mobs.js';
 import { tradesFor } from './villagers.js';
+import { POTIONS, addEffect, effectLevel, brewResult } from './effects.js';
 import { spawnTick, spawnerTick, populateChunk } from './spawning.js';
 import { BlockUpdater } from './blockupdates.js';
 import { DragonFight } from './dragon.js';
@@ -50,6 +51,9 @@ const DEATH_MESSAGES = {
   fireball: (s) => `were fireballed by ${s}`,
   pearl: () => 'fell after teleporting',
   lightning: () => 'were struck by lightning',
+  magic: () => 'were killed by magic',
+  wither: () => 'withered away',
+  poison: () => 'were poisoned',
   command: () => 'died',
 };
 
@@ -114,6 +118,7 @@ export class Game {
       p.pitch = sp.pitch ?? 0;
       p.flying = !!sp.flying;
       for (const k of ['health', 'food', 'saturation', 'exhaustion', 'air', 'fireTicks', 'xpLevel', 'xpProgress', 'enchantSeed']) if (typeof sp[k] === 'number') p[k] = sp[k];
+      if (sp.effects && typeof sp.effects === 'object') p.effects = sp.effects;
       this.placeOnArrival = 'saved';
     } else {
       const s = this.world.terrain.findSpawn();
@@ -218,6 +223,7 @@ export class Game {
         xpLevel: p.xpLevel,
         xpProgress: Math.round(p.xpProgress * 1000) / 1000,
         enchantSeed: p.enchantSeed,
+        effects: p.effects,
         spawn: this.spawn,
         selected: this.selected,
       },
@@ -247,6 +253,7 @@ export class Game {
       const move = this.state === 'playing' && !p.dead ? input : { forward: 0, strafe: 0, jump: false, sneak: false, sprint: false };
       if (p.vehicle && (move.sneak || p.vehicle.removed || p.dead)) this.dismount();
       this.rideInput = move;
+      p.speedMul = (1 + 0.2 * effectLevel(p, 'speed')) * Math.max(0.1, 1 - 0.15 * effectLevel(p, 'slowness'));
       if (p.vehicle) {
         p.fallDistance = 0;
       } else if (!p.dead && this.state !== 'sleeping') {
@@ -347,6 +354,11 @@ export class Game {
 
   tickFurnaces(world) {
     for (const [key, be] of world.blockEntities) {
+      if (be.type === 'brewing') {
+        this.tickBrewing(be);
+        if (this.openContainer?.data === be && this.tickCount % 5 === 0) this.hud?.refreshScreen();
+        continue;
+      }
       if (be.type !== 'furnace') continue;
       const [x, y, z] = key.split(',').map(Number);
       if (!world.isLoaded(x, z)) continue;
@@ -369,6 +381,7 @@ export class Game {
     if (p.invulnerable > 0) p.invulnerable--;
     if (p.xpCooldown > 0) p.xpCooldown--;
     if (p.portalCooldown > 0) p.portalCooldown--;
+    this.tickEffects();
     if (!p.vulnerable) {
       p.fireTicks = 0;
       p.air = 300;
@@ -424,10 +437,6 @@ export class Game {
       if (p.saturation > 0) p.saturation = Math.max(0, p.saturation - 1);
       else if (this.difficulty !== 'peaceful') p.food = Math.max(0, p.food - 1);
     }
-    if (p.regenEffect > 0) {
-      p.regenEffect--;
-      if (p.regenEffect % 10 === 0) p.health = Math.min(20, p.health + 1);
-    }
     if (this.gamerules.naturalRegeneration && p.food >= 18 && p.health < 20) {
       p.regenTimer++;
       const fast = p.food >= 20 && p.saturation > 0;
@@ -459,6 +468,7 @@ export class Game {
   damagePlayer(amount, cause, source = null, bypass = false) {
     const p = this.player;
     if (!p.vulnerable || p.dead || amount <= 0) return false;
+    if ((cause === 'fire' || cause === 'lava') && effectLevel(p, 'fire_resistance')) return false;
     let dmg = amount;
     const armoured = ['mob', 'arrow', 'explosion', 'cactus', 'lava', 'fireball', 'dragon', 'lightning'].includes(cause);
     if (armoured) {
@@ -543,6 +553,7 @@ export class Game {
     }
     p.health = 0;
     p.dead = true;
+    p.effects = {};
     this.stats.deaths++;
     const who = source?.def?.name ?? (source ? 'something' : '');
     const msg = `You ${(DEATH_MESSAGES[cause] ?? (() => 'died'))(who)}`;
@@ -868,7 +879,7 @@ export class Game {
     this.particles.blockBreak(x, y, z, id, Math.max(0.3, light));
     playBlockSound(def.sound, 'break');
     this.swing = 0;
-    if (def.entity === 'chest' || def.entity === 'furnace') this.dropContainer(x, y, z);
+    if (def.entity === 'chest' || def.entity === 'furnace' || def.entity === 'brewing') this.dropContainer(x, y, z);
     // Doors and beds take their other half with them.
     if (def.door) {
       const other = def.door.half === 'lower' ? y + 1 : y - 1;
@@ -930,6 +941,8 @@ export class Game {
       dmg *= 1.5;
       this.particles.burst([e.pos[0], e.pos[1] + e.h * 0.7, e.pos[2]], 'crit', 8, 0.4);
     }
+    // Strength and Weakness change every blow.
+    dmg = Math.max(0, dmg + 3 * effectLevel(p, 'strength') - 4 * effectLevel(p, 'weakness'));
     // Damage enchantments add on top, after the critical hit.
     const sharp = enchLevel(stack, 'sharpness');
     if (sharp) dmg += 0.5 * sharp + 0.5;
@@ -1047,6 +1060,12 @@ export class Game {
         }
         world.setBlock(t.x, t.y, t.z, def.cake >= 6 ? B.AIR : B[`CAKE_${def.cake + 1}`]);
         this.sound('eat', p.pos, 0.7);
+        return true;
+      }
+      case 'brewing': {
+        let be = world.blockEntities.get(key);
+        if (!be) world.blockEntities.set(key, (be = { type: 'brewing', slots: [null, null, null, null, null], fuel: 0, brew: 0 }));
+        this.openScreen('brewing', be);
         return true;
       }
       case 'enchant':
@@ -1222,6 +1241,21 @@ export class Game {
           this.sound('bow', p.pos, 0.5);
         }
         return true;
+      case 'fill_bottle': {
+        const hit = raycast(world, p.eye, p.look, 5, { fluids: true });
+        if (!hit || FLUID[hit.id] !== 1) return false;
+        if (p.vulnerable) this.replaceHeld({ item: 'water_bottle', count: 1, damage: 0 });
+        this.sound('splash', p.pos, 0.4);
+        return true;
+      }
+      case 'throw_potion': {
+        const look = p.look;
+        const e = projectile('potion', p.eye[0], p.eye[1] - 0.1, p.eye[2], [look[0] * 14, look[1] * 14 + 2, look[2] * 14], 'player');
+        e.potion = item.potion;
+        this.entities.add(e);
+        this.consumeHeld();
+        return true;
+      }
       case 'throw_egg': {
         const look = p.look;
         this.entities.add(projectile('egg', p.eye[0], p.eye[1] - 0.1, p.eye[2], look.map((v) => v * 22), 'player'));
@@ -1384,6 +1418,7 @@ export class Game {
     if (def.entity === 'furnace') world.blockEntities.set(posKey(x, y, z), newFurnace());
     if (def.entity === 'chest') world.blockEntities.set(posKey(x, y, z), { type: 'chest', slots: new Array(27).fill(null) });
     if (def.entity === 'spawner') world.blockEntities.set(posKey(x, y, z), { type: 'spawner', mob: 'zombie', delay: 200 });
+    if (def.entity === 'brewing') world.blockEntities.set(posKey(x, y, z), { type: 'brewing', slots: [null, null, null, null, null], fuel: 0, brew: 0 });
     playBlockSound(def.sound, 'place');
     this.stats.blocksPlaced++;
     this.consumeHeld();
@@ -1453,12 +1488,10 @@ export class Game {
     this.using = null;
     p.food = Math.min(20, p.food + item.food.hunger);
     p.saturation = Math.min(p.food, p.saturation + item.food.saturation);
-    if (item.food.regen) p.regenEffect = 100;
-    if (item.food.cures) p.regenEffect = 0;
-    if (item.food.poison && Math.random() < item.food.poison) {
-      p.exhaustion += 6;
-      this.hud?.toast('That made you feel queasy');
-    }
+    if (item.food.heal) p.health = Math.min(20, p.health + item.food.heal);
+    if (item.food.cures) p.effects = {};
+    if (item.food.effect && Math.random() < (item.food.chance ?? 1)) addEffect(p, ...item.food.effect);
+    if (item.food.potion) this.applyPotion(p, POTIONS[item.food.potion], 1);
     this.sound(item.food.drink ? 'drink' : 'burp', p.pos, 0.6);
     if (item.food.returns && p.vulnerable) this.replaceHeld({ item: item.food.returns, count: 1, damage: 0 });
     else this.consumeHeld();
@@ -1512,6 +1545,10 @@ export class Game {
       this.eggLand(e);
       return;
     }
+    if (e.type === 'potion') {
+      this.splashPotion(e);
+      return;
+    }
     if (e.type === 'ghast_fireball') {
       if (target !== 'player' && target.kind === 'mob') {
         // Your own swing sent it back: a ghast hit by its fireball dies outright.
@@ -1555,6 +1592,9 @@ export class Game {
     } else if (e.type === 'egg') {
       e.removed = true;
       this.eggLand(e);
+    } else if (e.type === 'potion') {
+      e.removed = true;
+      this.splashPotion(e);
     } else if (e.type === 'ghast_fireball') {
       e.removed = true;
       const back = hit.point.map((v, a) => v - e.vel[a] * 0.02);
@@ -1933,6 +1973,88 @@ export class Game {
     }
   }
 
+  // ---------------------------------------------------------------- status effects and brewing
+
+  tickEffects() {
+    const p = this.player;
+    for (const [key, e] of Object.entries(p.effects)) {
+      if (--e.ticks <= 0) {
+        delete p.effects[key];
+        continue;
+      }
+      if (key === 'regeneration' && this.tickCount % Math.max(1, 50 >> e.level) === 0) p.health = Math.min(20, p.health + 1);
+      if (key === 'poison' && p.health > 1 && this.tickCount % Math.max(1, 25 >> e.level) === 0) this.damagePlayer(1, 'poison', null, true);
+      if (key === 'wither' && this.tickCount % Math.max(1, 40 >> e.level) === 0) this.damagePlayer(1, 'wither', null, true);
+      if (key === 'hunger' && p.vulnerable) p.exhaustion += 0.025 * (e.level + 1);
+    }
+  }
+
+  // Apply a potion to the player or a mob; intensity scales splash potions by distance.
+  applyPotion(target, potion, intensity) {
+    if (!potion?.effect) return;
+    const [key, level, seconds] = potion.effect;
+    const isPlayer = target === this.player;
+    const undead = !isPlayer && target.def?.undead;
+    if (key === 'instant_health' || key === 'instant_damage') {
+      const heal = (key === 'instant_health') !== !!undead;
+      const amount = Math.round((heal ? 4 : 6) * (1 << level) * intensity);
+      if (heal) target.health = Math.min(isPlayer ? 20 : Math.max(target.def.health, target.health), target.health + amount);
+      else if (isPlayer) this.damagePlayer(amount, 'magic', null, true);
+      else hurtMob(target, amount, this, { kind: 'magic' });
+      return;
+    }
+    const ticks = Math.round(seconds * 20 * (potion.splash ? intensity : 1));
+    if (ticks <= 0) return;
+    if (isPlayer) addEffect(target, key, level, ticks);
+    else if (key === 'poison' && !undead) target.poison = Math.max(target.poison ?? 0, ticks);
+  }
+
+  // A splash potion shatters: everything within four blocks gets a share.
+  splashPotion(e) {
+    const potion = POTIONS[e.potion];
+    const c = potion.color.map((v) => v / 255);
+    for (let i = 0; i < 30; i++) {
+      this.particles.add({ pos: [e.pos[0], e.pos[1] + 0.2, e.pos[2]], vel: [(Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6], life: 0.6 + Math.random() * 0.5, size: 0.06, layer: this.weatherLayers?.white ?? 0, u0: 0, v0: 0, uw: 1, color: c, gravity: 6, collide: true });
+    }
+    this.sound('glass', e.pos);
+    const near = (pos) => Math.hypot(pos[0] - e.pos[0], pos[1] + 1 - e.pos[1], pos[2] - e.pos[2]);
+    const p = this.player;
+    if (p.vulnerable && near(p.pos) < 4) this.applyPotion(p, potion, 1 - near(p.pos) / 4);
+    for (const m of this.entities.mobs((x) => x.deathTime === 0 && near(x.pos) < 4)) this.applyPotion(m, potion, 1 - near(m.pos) / 4);
+  }
+
+  // Brewing stands: blaze powder fuels twenty brews of twenty seconds each.
+  tickBrewing(be) {
+    const [, , , ingredient, fuel] = be.slots;
+    const can = ingredient && be.slots.slice(0, 3).some((b) => b && brewResult(b.item, ingredient.item));
+    if (be.fuel <= 0 && fuel?.item === 'blaze_powder' && can) {
+      be.fuel = 20;
+      fuel.count--;
+      if (fuel.count <= 0) be.slots[4] = null;
+    }
+    if (be.brew > 0) {
+      if (!can || be.ingredient !== ingredient.item) {
+        be.brew = 0;
+        return;
+      }
+      if (--be.brew === 0) {
+        for (let i = 0; i < 3; i++) {
+          const b = be.slots[i];
+          const out = b && brewResult(b.item, ingredient.item);
+          if (out) be.slots[i] = { item: out, count: 1, damage: 0 };
+        }
+        ingredient.count--;
+        if (ingredient.count <= 0) be.slots[3] = null;
+        this.sound('fizz', null, 0.3);
+        this.advancements.event('brew');
+      }
+    } else if (can && be.fuel > 0) {
+      be.brew = 400;
+      be.ingredient = ingredient.item;
+      be.fuel--;
+    }
+  }
+
   // ---------------------------------------------------------------- experience and enchanting
 
   spawnXp(pos, points) {
@@ -2193,7 +2315,7 @@ export class Game {
         items.push({ key: 'tnt', pos: [pos[0], pos[1] + 0.5, pos[2]], yaw: 0, scale: 1 + (e.fuse < 10 ? (10 - e.fuse) * 0.02 : 0), light: this.lightColor(pos[0], pos[1] + 0.5, pos[2])[0], overlay: flash });
       } else if (e.kind === 'projectile') {
         if (e.type === 'arrow') entities.push({ model: 'arrow', pos, yaw: e.yaw, pitch: -e.pitch, scale: 1, light: this.lightColor(pos[0], pos[1], pos[2]), state: e, t: 0 });
-        else if (e.type === 'pearl' || e.type === 'eye' || e.type === 'egg') items.push({ key: { pearl: 'ender_pearl', eye: 'eye_of_ender', egg: 'egg' }[e.type], pos: [pos[0], pos[1] - 0.12, pos[2]], yaw: yaw + Math.PI, scale: 0.3, light: 1, sprite: true });
+        else if (e.type === 'pearl' || e.type === 'eye' || e.type === 'egg' || e.type === 'potion') items.push({ key: e.type === 'potion' ? e.potion : { pearl: 'ender_pearl', eye: 'eye_of_ender', egg: 'egg' }[e.type], pos: [pos[0], pos[1] - 0.12, pos[2]], yaw: yaw + Math.PI, scale: 0.3, light: 1, sprite: true });
         else if (e.type === 'ghast_fireball') items.push({ key: 'fire_charge', pos: [pos[0], pos[1] + 0.1, pos[2]], yaw: this.tickCount * 0.3, pitch: this.tickCount * 0.2, scale: 0.9, light: 1 });
         else items.push({ key: 'fire_charge', pos: [pos[0], pos[1] - 0.15, pos[2]], yaw: this.tickCount * 0.3, scale: 0.35, light: 1 });
       }

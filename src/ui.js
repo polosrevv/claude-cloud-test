@@ -11,6 +11,7 @@ import { clockLabel } from './sky.js';
 import { BLOCKS } from './blocks.js';
 import { describe, enchantName } from './enchantments.js';
 import { PROFESSIONS } from './villagers.js';
+import { EFFECTS, BREWING_INGREDIENTS, formatTicks } from './effects.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -115,6 +116,15 @@ export class Hud {
       $('xp-fill').style.width = `${Math.round(p.xpProgress * 1000) / 10}%`;
       $('xp-level').textContent = p.xpLevel > 0 ? String(p.xpLevel) : '';
     }
+    // Active status effects, top right.
+    const effectKey = Object.entries(p.effects ?? {}).map(([k, e]) => `${k}${e.level}${Math.ceil(e.ticks / 20)}`).join('|');
+    if (effectKey !== this.lastEffects) {
+      this.lastEffects = effectKey;
+      $('effects').innerHTML = Object.entries(p.effects ?? {}).map(([k, e]) => {
+        const def = EFFECTS[k];
+        return `<div class="effect${def.bad ? ' bad' : ''}"><i style="background:rgb(${def.color.join(',')})"></i>${escapeHtml(def.name)}${e.level ? ` ${['', 'II', 'III', 'IV'][e.level] ?? e.level + 1}` : ''}<span>${formatTicks(e.ticks)}</span></div>`;
+      }).join('');
+    }
     $('underwater').hidden = !(p.headInWater && !p.dead);
     $('fire-tint').hidden = !(p.fireTicks > 0 && survival && !p.dead);
     $('hurt-tint').style.opacity = p.hurtTicks > 0 ? String(p.hurtTicks / 10) : '0';
@@ -187,7 +197,7 @@ export class Hud {
 
   advancement(a) {
     const el = $('advancement');
-    const item = a.has?.[0] ?? { kill: 'iron_sword', enchant: 'enchanting_table', tame: 'bone', return_to_sender: 'ghast_tear', trade: 'emerald', fish: 'cod', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
+    const item = a.has?.[0] ?? { kill: 'iron_sword', enchant: 'enchanting_table', tame: 'bone', return_to_sender: 'ghast_tear', trade: 'emerald', fish: 'cod', brew: 'potion_healing', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
     $('adv-icon').src = this.icon(ITEMS[item] ? item : 'grass');
     $('adv-title').textContent = a.title;
     el.classList.remove('out');
@@ -458,6 +468,27 @@ export class Hud {
         </div>
         <div class="side-note" style="max-width:none">Your level: <b>${p.vulnerable ? p.xpLevel : '∞'}</b> · Bookshelves: <b>${shelves}</b>/15. Bookshelves two blocks from the table make stronger offers.</div>
         ${player()}`;
+    } else if (w.kind === 'brewing') {
+      title = 'Brewing Stand';
+      const be = w.data;
+      const bInv = { slots: be.slots };
+      const progress = be.brew > 0 ? Math.round((1 - be.brew / 400) * 100) : 0;
+      body = `
+        <div class="gui-row" style="justify-content:center;align-items:flex-start;gap:20px">
+          <div class="stack-col">
+            ${slot({ inv: bInv, index: 4, kind: 'brew_fuel', section: 'brew_fuel', empty: 'Blaze powder (fuel)' })}
+            <div class="fuel-bar" title="Fuel"><i style="width:${Math.round((be.fuel / 20) * 100)}%"></i></div>
+          </div>
+          <div class="stack-col">
+            ${slot({ inv: bInv, index: 3, kind: 'ingredient', section: 'ingredient', empty: 'Ingredient' })}
+            <div class="brew-arrow"><i style="height:${progress}%"></i></div>
+            <div class="gui-row" style="gap:6px">
+              ${[0, 1, 2].map((i) => slot({ inv: bInv, index: i, kind: 'bottle', section: 'bottles', empty: 'Bottle' })).join('')}
+            </div>
+          </div>
+          <div class="side-note">Water bottles + nether wart make awkward potions. Then add an ingredient: sugar, blaze powder, ghast tear, glistering melon, spider eye or magma cream. Glowstone strengthens a potion, a fermented spider eye corrupts it, and gunpowder makes it a splash potion.</div>
+        </div>
+        ${player()}`;
     } else if (w.kind === 'trade') {
       const v = w.data;
       title = PROFESSIONS[v.profession]?.name ?? 'Villager';
@@ -682,6 +713,7 @@ export class Hud {
         if (this.window.kind === 'furnace') return SMELTING[s.item] ? by('input') : item?.fuel ? by('fuel') : by('hotbar');
         if (this.window.kind === 'chest') return by('chest');
         if (this.window.kind === 'enchant') return s.item === 'lapis_lazuli' ? by('lapis') : by('enchant');
+        if (this.window.kind === 'brewing') return s.item === 'blaze_powder' ? [...by('brew_fuel'), ...by('ingredient')] : BREWING_INGREDIENTS.has(s.item) ? by('ingredient') : by('bottles');
         return by('hotbar');
       }
       case 'hotbar': {
@@ -689,6 +721,7 @@ export class Hud {
         if (this.window.kind === 'furnace') return SMELTING[s.item] ? by('input') : item?.fuel ? by('fuel') : by('main');
         if (this.window.kind === 'chest') return by('chest');
         if (this.window.kind === 'enchant') return s.item === 'lapis_lazuli' ? by('lapis') : by('enchant');
+        if (this.window.kind === 'brewing') return s.item === 'blaze_powder' ? [...by('brew_fuel'), ...by('ingredient')] : BREWING_INGREDIENTS.has(s.item) ? by('ingredient') : by('bottles');
         return by('main');
       }
       default:

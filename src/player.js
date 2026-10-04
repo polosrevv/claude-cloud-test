@@ -55,7 +55,7 @@ export class Player {
     this.invulnerable = 0;
     this.regenTimer = 0;
     this.starveTimer = 0;
-    this.regenEffect = 0;
+    this.effects = {};
     this.dead = false;
     this.fallDistance = 0;
   }
@@ -139,6 +139,7 @@ export class Player {
       else if (this.sneaking) speed = SPEED.sneak;
       else speed = this.sprinting ? SPEED.sprint : SPEED.walk;
       if (this.inLava) speed *= 0.5;
+      speed *= this.speedMul ?? 1;
       const ground = world.getBlock(Math.floor(p[0]), Math.floor(p[1] - 0.2), Math.floor(p[2]));
       if (this.onGround && BLOCKS[ground].slows) speed *= 0.45;
       const slippery = this.onGround && BLOCKS[ground].slippery;

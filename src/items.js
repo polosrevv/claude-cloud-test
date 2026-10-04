@@ -2,6 +2,7 @@
 // by item name, so saves don't depend on numeric ids.
 import { BLOCKS, B, RENDER_TYPE, RENDER } from './blocks.js';
 import { textureIndex } from './textures.js';
+import { POTIONS } from './effects.js';
 
 export const ITEMS = {};
 const order = [];
@@ -110,17 +111,18 @@ add('lava_bucket', { name: 'Lava Bucket', maxStack: 1, tab: 'tools', use: 'pour'
 // ---- Food ----
 const food = (key, name, hunger, saturation, extra = {}) => add(key, { name, tab: 'food', food: { hunger, saturation, ...extra } });
 food('apple', 'Apple', 4, 2.4);
-food('golden_apple', 'Golden Apple', 4, 9.6, { regen: 5, always: true });
+food('golden_apple', 'Golden Apple', 4, 9.6, { effect: ['regeneration', 1, 100], heal: 4, always: true });
 food('bread', 'Bread', 5, 6);
 food('porkchop', 'Raw Porkchop', 3, 1.8);
 food('cooked_porkchop', 'Cooked Porkchop', 8, 12.8);
 food('beef', 'Raw Beef', 3, 1.8);
 food('steak', 'Steak', 8, 12.8);
-food('chicken', 'Raw Chicken', 2, 1.2, { poison: 0.3 });
+food('chicken', 'Raw Chicken', 2, 1.2, { effect: ['hunger', 0, 600], chance: 0.3 });
 food('cooked_chicken', 'Cooked Chicken', 6, 7.2);
 food('mutton', 'Raw Mutton', 2, 1.2);
 food('cooked_mutton', 'Cooked Mutton', 6, 9.6);
-food('rotten_flesh', 'Rotten Flesh', 4, 0.8, { poison: 0.8 });
+food('rotten_flesh', 'Rotten Flesh', 4, 0.8, { effect: ['hunger', 0, 600], chance: 0.8 });
+food('spider_eye', 'Spider Eye', 2, 3.2, { effect: ['poison', 0, 100], chance: 1 });
 food('melon_slice', 'Melon Slice', 2, 1.2);
 food('cod', 'Raw Cod', 2, 0.4);
 food('cooked_cod', 'Cooked Cod', 5, 6);
@@ -156,6 +158,17 @@ mat('bowl', 'Bowl', { fuel: 0.5 });
 mat('pumpkin_seeds', 'Pumpkin Seeds', { use: 'plant', plants: 'pumpkin_stem_0', tab: 'nature' });
 mat('melon_seeds', 'Melon Seeds', { use: 'plant', plants: 'melon_stem_0', tab: 'nature' });
 mat('gold_nugget', 'Gold Nugget');
+mat('fermented_spider_eye', 'Fermented Spider Eye', { tab: 'brewing' });
+mat('glistering_melon', 'Glistering Melon', { tab: 'brewing' });
+mat('magma_cream', 'Magma Cream', { tab: 'brewing' });
+mat('nether_wart', 'Nether Wart', { use: 'plant', plants: 'nether_wart_0', tab: 'brewing' });
+mat('glass_bottle', 'Glass Bottle', { use: 'fill_bottle', tab: 'brewing' });
+add('water_bottle', { name: 'Water Bottle', maxStack: 1, tab: 'brewing', food: { hunger: 0, saturation: 0, always: true, drink: true, returns: 'glass_bottle' } });
+// Potions: drink them like food (handing back the bottle), or throw the splash kind.
+for (const [key, p] of Object.entries(POTIONS)) {
+  if (p.splash) add(key, { name: p.name, maxStack: 1, tab: 'brewing', use: 'throw_potion', potion: key });
+  else add(key, { name: p.name, maxStack: 1, tab: 'brewing', potion: key, food: { hunger: 0, saturation: 0, always: true, drink: true, returns: 'glass_bottle', potion: key } });
+}
 mat('emerald', 'Emerald');
 mat('ghast_tear', 'Ghast Tear');
 mat('slimeball', 'Slimeball');
@@ -215,6 +228,7 @@ export const CREATIVE_TABS = [
   ['combat', 'Combat'],
   ['food', 'Food'],
   ['materials', 'Materials'],
+  ['brewing', 'Brewing'],
 ];
 
 export function itemOf(key) {

@@ -289,6 +289,9 @@ export class BlockUpdater {
       const ground = world.getBlock(x + dx, y - 1, z + dz);
       if (world.getBlock(x + dx, y, z + dz) !== B.AIR || !(ground === B.DIRT || ground === B.GRASS || ground === B.FARMLAND)) return;
       world.setBlock(x + dx, y, z + dz, def.stem === 'melon' ? B.MELON : B[`PUMPKIN_${'NESW'[Math.floor(Math.random() * 4)]}`]);
+    } else if (def.wart !== undefined) {
+      // Nether wart ripens on soul sand, in any light.
+      if (def.wart < 3 && Math.random() < 0.15) world.setBlock(x, y, z, B[`NETHER_WART_${def.wart + 1}`]);
     } else if (def.mushroom) {
       // Mushrooms creep across dark ground, a few to a patch.
       if (game.lightAt(x, y, z) > 12 || Math.random() > 0.04) return;

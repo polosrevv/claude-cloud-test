@@ -1,5 +1,6 @@
 // 16x16 item sprites (tools, armour, food, materials), drawn in code like the
 // block textures. Each entry receives the tile, a seeded RNG and helpers.
+import { POTIONS } from './effects.js';
 
 const MATERIALS = {
   wooden: [150, 112, 60],
@@ -317,6 +318,19 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
         '.......oo.......',
       ], { l: [210, 255, 220], g: [120, 240, 160], '#': [40, 190, 90], o: [16, 90, 44] });
     },
+    item_spider_eye(t, r) { clear(t); disk(t, r, 8, 8.5, 4.5, 4.5, [150, 40, 50], 0.08); disk(t, r, 7, 7.5, 1.6, 1.6, [230, 120, 120], 0.05); rim(t, 0.5); },
+    item_fermented_spider_eye(t, r) { clear(t); disk(t, r, 8, 8.5, 4.5, 4.5, [120, 70, 60], 0.08); disk(t, r, 9, 7, 2, 1.6, [200, 160, 140], 0.05); disk(t, r, 6, 10, 1.2, 1.2, [176, 120, 80], 0.05); rim(t, 0.5); },
+    item_glistering_melon(t, r) {
+      items.item_melon_slice(t, r);
+      for (const [x, y] of [[5, 9], [8, 11], [11, 12], [7, 13], [4, 12]]) put(t, x, y, [255, 230, 90]);
+    },
+    item_magma_cream(t, r) { clear(t); disk(t, r, 8, 8.5, 4.6, 4.2, [210, 90, 30], 0.1); disk(t, r, 8, 8.5, 2.4, 2, [250, 200, 70], 0.06); rim(t, 0.5); },
+    item_nether_wart(t, r) {
+      clear(t);
+      for (const [x, y, rad] of [[6, 7, 2.6], [10, 8, 2.2], [8, 11, 2.4]]) disk(t, r, x, y, rad, rad, [150, 30, 36], 0.1);
+      line(t, r, 8, 14, 8, 11, [110, 40, 30], 1);
+      rim(t, 0.55);
+    },
     item_gold_nugget(t, r) { clear(t); disk(t, r, 8, 9, 3.2, 2.6, [250, 214, 70], 0.1); disk(t, r, 6.5, 6.5, 1.6, 1.4, [255, 240, 150], 0.05); rim(t, 0.6); },
     item_ghast_tear(t, r) {
       clear(t);
@@ -606,5 +620,23 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
   for (const mat of ['leather', 'iron', 'golden', 'diamond']) {
     for (const kind of Object.keys(ARMOR)) items[`item_${mat}_${kind}`] = armour(kind, mat);
   }
+  // Glass bottles, filled with water or a potion; splash bottles are squatter with a handle.
+  const bottle = (t, r, liquid, splash) => {
+    clear(t);
+    const rows = splash
+      ? ['', '', '', '......oo........', '.....o..o.......', '......oo........', '.....oooo.......', '....o####o......', '...o######o.....', '...o######o.....', '...o######o.....', '....o####o......', '.....oooo.......']
+      : ['', '', '......ooo.......', '......o.o.......', '......ooo.......', '.......o........', '.....o###o......', '....o#####o.....', '...o#######o....', '...o#######o....', '...o#######o....', '....o#####o.....', '.....ooooo......'];
+    art(t, r, rows, { o: [214, 226, 236], '#': liquid ?? [214, 226, 236] });
+    if (liquid) {
+      // A highlight on the glass.
+      put(t, 5, splash ? 8 : 8, [255, 255, 255]);
+      put(t, 5, splash ? 9 : 9, [240, 246, 250]);
+    } else {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (t[(y * 16 + x) * 4 + 3] && t[(y * 16 + x) * 4] === 214) t[(y * 16 + x) * 4 + 3] = 200;
+    }
+  };
+  items.item_glass_bottle = (t, r) => bottle(t, r, null, false);
+  items.item_water_bottle = (t, r) => bottle(t, r, [52, 84, 210], false);
+  for (const [key, p] of Object.entries(POTIONS)) items[`item_${key}`] = (t, r) => bottle(t, r, p.color, p.splash);
   return items;
 }

@@ -601,3 +601,62 @@ test('boats float and row; bobbers bob until a fish bites', async () => {
   assert.ok(f.inWater);
   assert.ok(bit, 'a fish bit');
 });
+
+test('brewing follows the Minecraft chart and every potion is a real item', async () => {
+  const { POTIONS, EFFECTS, BREWING_INGREDIENTS, brewResult } = await import('../src/effects.js');
+  for (const [key, p] of Object.entries(POTIONS)) {
+    assert.ok(ITEMS[key], key);
+    if (p.effect) assert.ok(EFFECTS[p.effect[0]], `${key} effect`);
+  }
+  for (const ing of BREWING_INGREDIENTS) assert.ok(ITEMS[ing], ing);
+  assert.equal(brewResult('water_bottle', 'nether_wart'), 'potion_awkward');
+  assert.equal(brewResult('water_bottle', 'sugar'), null);
+  assert.equal(brewResult('potion_awkward', 'sugar'), 'potion_swiftness');
+  assert.equal(brewResult('potion_awkward', 'blaze_powder'), 'potion_strength');
+  assert.equal(brewResult('potion_swiftness', 'glowstone_dust'), 'potion_swiftness_2');
+  assert.equal(brewResult('potion_swiftness', 'fermented_spider_eye'), 'potion_slowness');
+  assert.equal(brewResult('potion_poison', 'fermented_spider_eye'), 'potion_harming');
+  assert.equal(brewResult('potion_healing', 'gunpowder'), 'splash_potion_healing');
+  assert.equal(brewResult('splash_potion_healing', 'glowstone_dust'), 'splash_potion_healing_2');
+  assert.equal(brewResult('splash_potion_healing', 'gunpowder'), null);
+  assert.equal(brewResult('potion_awkward', 'gunpowder'), null);
+  // Every brewable potion can be reached from a water bottle.
+  const seen = new Set(['water_bottle']);
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const b of [...seen]) for (const ing of BREWING_INGREDIENTS) {
+      const out = brewResult(b, ing);
+      if (out && !seen.has(out)) { seen.add(out); changed = true; }
+    }
+  }
+  for (const key of Object.keys(POTIONS)) assert.ok(seen.has(key), `${key} is brewable`);
+});
+
+test('status effects keep the strongest, count down and show their level', async () => {
+  const { addEffect, effectLevel, formatTicks } = await import('../src/effects.js');
+  const h = {};
+  addEffect(h, 'speed', 0, 200);
+  addEffect(h, 'speed', 0, 100);
+  assert.deepEqual(h.effects.speed, { level: 0, ticks: 200 });
+  addEffect(h, 'speed', 1, 50);
+  assert.deepEqual(h.effects.speed, { level: 1, ticks: 50 });
+  assert.equal(effectLevel(h, 'speed'), 2);
+  assert.equal(effectLevel(h, 'poison'), 0);
+  assert.equal(formatTicks(1800), '1:30');
+  // /effect uses Minecraft's zero-based amplifier.
+  const game = { cheats: true, player: { effects: {}, pos: [0, 0, 0] }, applyPotion() {} };
+  const out = runCommand(game, '/effect give @s strength 10 1');
+  assert.match(out[0].text, /Strength II for 10 seconds/);
+  assert.deepEqual(game.player.effects.strength, { level: 1, ticks: 200 });
+  runCommand(game, '/effect clear');
+  assert.deepEqual(game.player.effects, {});
+});
+
+test('magma cubes split and wither skeletons are fireproof undead', () => {
+  const big = createSlime(4, 0, 10, 0, 'magma_cube');
+  assert.equal(big.type, 'magma_cube');
+  assert.equal(big.size, 4);
+  assert.ok(MOBS.magma_cube.fireImmune && MOBS.wither_skeleton.fireImmune && MOBS.wither_skeleton.undead);
+  const ws = createMob('wither_skeleton', 0, 10, 0);
+  assert.ok(ws.h > 2);
+});

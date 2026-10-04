@@ -253,6 +253,28 @@ const SKINS = {
     paintBox(img, 0, 34, 8, 3, 1, (face, x, y) => plank(x, y));
     paintBox(img, 32, 34, 7, 1, 1, (face, x) => vary(r, x > 4 ? [150, 110, 64] : [110, 80, 46], 0.05));
   },
+  magma_cube(img, r) {
+    paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => {
+      if (face === 'front' && y >= 3 && y <= 4 && (x === 1 || x === 2 || x === 5 || x === 6)) return [250, 210, 60];
+      return (x + y * 3) % 7 === 0 || y === 4 ? vary(r, [230, 110, 30], 0.1) : vary(r, [60, 18, 14], 0.15);
+    });
+    paintBox(img, 0, 16, 6, 6, 6, () => vary(r, [250, 150, 40], 0.1));
+    paintBox(img, 32, 0, 2, 2, 1, () => [250, 220, 80]);
+    paintBox(img, 32, 4, 2, 2, 1, () => [250, 220, 80]);
+    paintBox(img, 32, 8, 1, 1, 1, () => [80, 20, 10]);
+  },
+  wither_skeleton(img, r) {
+    const bone = [44, 44, 46];
+    paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => {
+      if (face === 'front') {
+        if ((y === 3 || y === 4) && (x === 1 || x === 2 || x === 5 || x === 6)) return [8, 8, 8];
+        if (y === 6 && x >= 2 && x <= 5 && x % 2 === 0) return [16, 16, 16];
+      }
+      return vary(r, bone, 0.08);
+    });
+    paintBox(img, 16, 16, 8, 12, 4, (face, x, y) => (y % 3 === 2 && x > 0 && x < 7 && face !== 'top' ? [20, 20, 20, 0] : vary(r, bone, 0.08)));
+    paintBox(img, 40, 16, 2, 12, 2, fill(r, bone, 0.08));
+  },
   crystal(img, r) {
     paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => (x === 0 || y === 0 || x === 7 || y === 7 ? [240, 200, 255, 230] : [220, 120, 240, 120]));
     paintBox(img, 32, 0, 8, 8, 8, () => vary(r, [255, 170, 240], 0.15));

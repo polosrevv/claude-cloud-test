@@ -95,6 +95,11 @@ shaped('melon', 1, ['MMM', 'MMM', 'MMM'], { M: 'melon_slice' });
 // Food
 shapeless('sugar', 1, ['sugar_cane']);
 shaped('bowl', 4, ['P P', ' P '], { P: '#planks' });
+shaped('glass_bottle', 3, ['G G', ' G '], { G: 'glass' });
+shaped('brewing_stand', 1, [' B ', 'CCC'], { B: 'blaze_rod', C: 'cobblestone' });
+shapeless('fermented_spider_eye', 1, ['spider_eye', 'sugar', 'brown_mushroom']);
+shapeless('magma_cream', 1, ['slimeball', 'blaze_powder']);
+shaped('glistering_melon', 1, ['NNN', 'NMN', 'NNN'], { N: 'gold_nugget', M: 'melon_slice' });
 shaped('fishing_rod', 1, ['  S', ' ST', 'S T'], { S: 'stick', T: 'string' });
 shaped('boat', 1, ['P P', 'PPP'], { P: '#planks' });
 shapeless('mushroom_stew', 1, ['bowl', 'brown_mushroom', 'red_mushroom']);

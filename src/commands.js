@@ -4,6 +4,7 @@ import { B, BLOCKS } from './blocks.js';
 import { MOBS, createMob, createSlime } from './mobs.js';
 import { HEIGHT } from './constants.js';
 import { ENCHANTMENTS, enchantName, fits } from './enchantments.js';
+import { EFFECTS, addEffect } from './effects.js';
 
 const GAMEMODES = { survival: 'survival', s: 'survival', 0: 'survival', creative: 'creative', c: 'creative', 1: 'creative', spectator: 'spectator', sp: 'spectator', 3: 'spectator' };
 const DIFFICULTIES = { peaceful: 'peaceful', p: 'peaceful', 0: 'peaceful', easy: 'easy', e: 'easy', 1: 'easy', normal: 'normal', n: 'normal', 2: 'normal', hard: 'hard', h: 'hard', 3: 'hard' };
@@ -21,6 +22,7 @@ export const COMMANDS = {
   summon: { usage: '/summon <mob> [x y z]', about: 'Spawn a mob' },
   xp: { usage: '/xp <amount>[L] or /xp add|set <amount> [levels|points]', about: 'Give yourself experience' },
   enchant: { usage: '/enchant <enchantment> [level]', about: 'Enchant the item in your hand' },
+  effect: { usage: '/effect give <effect> [seconds] [amplifier] or /effect clear', about: 'Give yourself a status effect' },
   kill: { usage: '/kill [@e|@e[type=<mob>]]', about: 'Kill yourself or mobs' },
   setblock: { usage: '/setblock <x> <y> <z> <block>', about: 'Place one block' },
   fill: { usage: '/fill <x1> <y1> <z1> <x2> <y2> <z2> <block>', about: 'Fill a box with a block' },
@@ -166,13 +168,30 @@ export function runCommand(game, text) {
       say(`Applied ${enchantName(key, lvl)} to ${ITEMS[held.item].name}`);
       break;
     }
+    case 'effect': {
+      const words = args.filter((a) => !a.startsWith('@'));
+      if (words[0] === 'clear') {
+        p.effects = {};
+        say('Removed every effect');
+        break;
+      }
+      const key = (words[0] === 'give' ? words[1] : words[0])?.toLowerCase().replace(/^minecraft:/, '');
+      const rest = words[0] === 'give' ? words.slice(2) : words.slice(1);
+      if (!EFFECTS[key]) { err(`Unknown effect. Try: ${Object.keys(EFFECTS).join(', ')}`); break; }
+      const secs = Math.max(1, Number(rest[0]) || 30);
+      const level = Math.max(0, Math.min(4, Math.floor(Number(rest[1]) || 0)));
+      if (EFFECTS[key].instant) game.applyPotion(p, { effect: [key, level, 0] }, 1);
+      else addEffect(p, key, level, secs * 20);
+      say(`Applied ${EFFECTS[key].name} ${['I', 'II', 'III', 'IV', 'V'][level]}${EFFECTS[key].instant ? '' : ` for ${secs} seconds`}`);
+      break;
+    }
     case 'summon': {
       const type = args[0]?.toLowerCase().replace(/^minecraft:/, '').replace('ender_dragon', 'dragon').replace('zombified_piglin', 'zombie_pigman');
       if (!MOBS[type]) { err(`Unknown mob. Try: ${Object.keys(MOBS).join(', ')}`); break; }
       const x = args.length >= 4 ? coord(args[1], p.pos[0]) : p.pos[0] + p.look[0] * 3;
       const y = args.length >= 4 ? coord(args[2], p.pos[1]) : p.pos[1];
       const z = args.length >= 4 ? coord(args[3], p.pos[2]) : p.pos[2] + p.look[2] * 3;
-      const mob = type === 'slime' ? createSlime([1, 2, 4][Math.floor(Math.random() * 3)], x, y, z) : createMob(type, x, y, z);
+      const mob = MOBS[type].slimy ? createSlime([1, 2, 4][Math.floor(Math.random() * 3)], x, y, z, type) : createMob(type, x, y, z);
       if (type === 'dragon') { mob.phase = 'circle'; mob.phaseTime = 0; mob.angle = 0; }
       mob.persistent = !MOBS[type].hostile;
       game.entities.add(mob);
@@ -286,6 +305,8 @@ export function complete(text) {
   else if (cmd === 'weather' && parts.length === 2) options = ['clear', 'rain', 'thunder'];
   else if (cmd === 'enchant' && parts.length === 2) options = Object.keys(ENCHANTMENTS);
   else if (cmd === 'xp' && parts.length === 2) options = ['add', 'set', 'query'];
+  else if (cmd === 'effect' && parts.length === 2) options = ['give', 'clear'];
+  else if (cmd === 'effect' && parts.length === 3) options = Object.keys(EFFECTS);
   else if (cmd === 'kill') options = ['@s', '@e', ...Object.keys(MOBS).map((m) => `@e[type=${m}]`)];
   return options.filter((o) => o.toLowerCase().startsWith(last)).map((o) => head + o);
 }

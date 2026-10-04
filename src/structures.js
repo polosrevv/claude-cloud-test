@@ -139,6 +139,15 @@ export function fortress(set, columnBottom, fx, fz) {
   }
   set(fx, Y + 1, fz, B.SPAWNER, true);
   set(fx + 5, Y + 1, fz + 5, B.CHEST_N, true);
+  // Beds of nether wart on soul sand in two corners of the hall.
+  for (const [cx, cz] of [[-5, -5], [5, -5]]) {
+    for (let dz = -1; dz <= 0; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        set(fx + cx + dx, Y, fz + cz + dz, B.SOUL_SAND, true);
+        set(fx + cx + dx, Y + 1, fz + cz + dz, B.NETHER_WART_3, true);
+      }
+    }
+  }
   // Spawner platform at the far end of the east bridge.
   for (let dz = -3; dz <= 3; dz++) {
     for (let dx = -3; dx <= 3; dx++) {

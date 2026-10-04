@@ -2,6 +2,7 @@
 import { ITEMS, maxStack } from './items.js';
 import { matchRecipe, SMELTING, SMELT_XP } from './recipes.js';
 import { mulberry32 } from './noise.js';
+import { BREWING_INGREDIENTS } from './effects.js';
 
 export const clone = (s) => {
   if (!s) return null;
@@ -118,11 +119,14 @@ function accepts(slot, stack) {
   if (slot.kind === 'armor') return ITEMS[stack.item]?.armor?.slot === slot.armorSlot;
   if (slot.kind === 'fuel') return (ITEMS[stack.item]?.fuel ?? 0) > 0;
   if (slot.kind === 'lapis') return stack.item === 'lapis_lazuli';
+  if (slot.kind === 'bottle') return stack.item === 'water_bottle' || stack.item.startsWith('potion_') || stack.item.startsWith('splash_potion_');
+  if (slot.kind === 'ingredient') return BREWING_INGREDIENTS.has(stack.item);
+  if (slot.kind === 'brew_fuel') return stack.item === 'blaze_powder';
   return true;
 }
 
 // Armour and the enchanting table's item slot hold a single item.
-const slotLimit = (slot, item) => (slot.kind === 'armor' || slot.kind === 'enchant-item' ? 1 : maxStack(item));
+const slotLimit = (slot, item) => (slot.kind === 'armor' || slot.kind === 'enchant-item' || slot.kind === 'bottle' ? 1 : maxStack(item));
 
 // Left (button 0) or right (button 2) click on a normal slot with the cursor.
 export function clickSlot(holder, slot, button) {

@@ -897,6 +897,20 @@ const GEN = {
     }
     put(t, 7, 3, [60, 60, 60]); put(t, 8, 3, [60, 60, 60]);
   },
+  ...Object.fromEntries(Array.from({ length: 4 }, (_, stage) => [`nether_wart_${stage}`, (t, r) => {
+    clear(t);
+    const n = 2 + stage * 2;
+    for (let i = 0; i < n; i++) {
+      const x = 3 + ((i * 5 + 2) % 10);
+      const top = 15 - (3 + stage * 2 + (i % 3));
+      for (let y = top; y < 16; y++) put(t, x, y, mul([120, 30, 34], jitter(r, 0.1)));
+      put(t, x - 1, top, mul([170, 40, 44], jitter(r, 0.1)));
+      put(t, x + 1, top, mul([170, 40, 44], jitter(r, 0.1)));
+      if (stage === 3) put(t, x, top - 1, [196, 60, 60]);
+    }
+  }])),
+  brewing_stand_base(t, r) { noiseFill(t, r, [118, 118, 116], 0.08); },
+  brewing_stand_rod(t, r) { noiseFill(t, r, [250, 200, 70], 0.08); },
   xp_orb(t, r) {
     clear(t);
     for (let y = 0; y < TILE; y++) {

@@ -115,18 +115,24 @@ export function spawnTick(game) {
     } else if (dim === 'nether') {
       const startY = 20 + Math.floor(Math.random() * 90);
       const inFortress = world.terrain.insideFortress(x, startY, z);
-      type = inFortress ? pick([['blaze', 3], ['skeleton', 1], ['zombie_pigman', 1]]) : pick([['zombie_pigman', 12], ['enderman', 1]]);
+      type = inFortress ? pick([['blaze', 3], ['wither_skeleton', 3], ['magma_cube', 1], ['zombie_pigman', 1]]) : pick([['zombie_pigman', 12], ['magma_cube', 2], ['enderman', 1]]);
+      if (type === 'magma_cube') {
+        y = floorBelow(world, x, startY, z, 3, 30);
+        if (y !== null) game.entities.add(createSlime([1, 2, 4][Math.floor(Math.random() * 3)], x + 0.5, y, z + 0.5, 'magma_cube'));
+        continue;
+      }
       y = floorBelow(world, x, startY, z, 2, 30);
       if (y === null) continue;
       if (type === 'blaze' && world.getBlock(x, y - 1, z) !== B.NETHER_BRICKS) continue;
-      if (type !== 'blaze' && type !== 'zombie_pigman' && Math.random() < 0.6) continue;
+      if (type === 'wither_skeleton' && !clearAt(world, x, y, z, 3)) continue;
+      if (type !== 'blaze' && type !== 'zombie_pigman' && type !== 'wither_skeleton' && Math.random() < 0.6) continue;
     } else {
       type = 'enderman';
       y = floorBelow(world, x, 80, z, 3, 50);
       if (y === null || world.getBlock(x, y - 1, z) !== B.END_STONE) continue;
     }
     if (Math.hypot(x + 0.5 - p.pos[0], y - p.pos[1], z + 0.5 - p.pos[2]) < 20) continue;
-    const pack = type === 'enderman' || type === 'blaze' ? 1 : type === 'zombie_pigman' ? 2 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 3);
+    const pack = type === 'enderman' || type === 'blaze' || type === 'wither_skeleton' ? 1 : type === 'zombie_pigman' ? 2 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 3);
     for (let i = 0; i < pack; i++) {
       const sx = x + (i ? Math.floor(Math.random() * 5) - 2 : 0);
       const sz = z + (i ? Math.floor(Math.random() * 5) - 2 : 0);

@@ -437,7 +437,7 @@ export class EntityManager {
         return;
       }
     }
-    const gravity = { arrow: 20, pearl: 12, fireball: 0, ghast_fireball: 0 }[e.type] ?? 12;
+    const gravity = { arrow: 20, pearl: 12, fireball: 0, ghast_fireball: 0, potion: 16 }[e.type] ?? 12;
     e.vel[1] -= gravity * DT;
     if (e.type === 'arrow') {
       e.vel[0] *= 0.99; e.vel[1] *= 0.99; e.vel[2] *= 0.99;
@@ -558,7 +558,7 @@ export function deserializeEntity(s) {
     return e;
   }
   if (s.kind === 'mob' && MOBS[s.type]) {
-    const e = s.type === 'slime' ? createSlime(s.size ?? 1, x, y, z) : createMob(s.type, x, y, z);
+    const e = MOBS[s.type].slimy ? createSlime(s.size ?? 1, x, y, z, s.type) : createMob(s.type, x, y, z);
     e.health = s.health ?? e.health;
     e.yaw = e.bodyYaw = s.yaw ?? 0;
     if (s.baby) e.growUp = s.baby;

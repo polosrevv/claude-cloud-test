@@ -2,6 +2,7 @@
 // hostile mobs find a path to the player and attack in their own way.
 import { B, SOLID, FLUID, BLOCKS } from './blocks.js';
 import { moveBody, forBlocksIn } from './physics.js';
+import { addEffect } from './effects.js';
 
 const DT = 0.05;
 
@@ -13,13 +14,15 @@ export const MOBS = {
   zombie: { name: 'Zombie', model: 'zombie', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: true, damage: [2, 3, 4], burns: true, undead: true, xp: 5, drops: [['rotten_flesh', 0, 2]], sound: 'zombie' },
   skeleton: { name: 'Skeleton', model: 'skeleton', hw: 0.3, h: 1.99, health: 20, speed: 2.5, hostile: true, ranged: true, burns: true, undead: true, xp: 5, drops: [['bone', 0, 2], ['arrow', 0, 2]], sound: 'skeleton' },
   creeper: { name: 'Creeper', model: 'creeper', hw: 0.3, h: 1.7, health: 20, speed: 2.4, hostile: true, explodes: true, xp: 5, drops: [['gunpowder', 0, 2]], sound: 'creeper' },
-  spider: { name: 'Spider', model: 'spider', hw: 0.7, h: 0.9, health: 16, speed: 3.0, hostile: true, damage: [2, 2, 3], climbs: true, arthropod: true, xp: 5, drops: [['string', 0, 2]], sound: 'spider' },
+  spider: { name: 'Spider', model: 'spider', hw: 0.7, h: 0.9, health: 16, speed: 3.0, hostile: true, damage: [2, 2, 3], climbs: true, arthropod: true, xp: 5, drops: [['string', 0, 2], ['spider_eye', 0, 1, null, 0.33]], sound: 'spider' },
   enderman: { name: 'Enderman', model: 'enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.0, hostile: true, neutral: true, damage: [4, 7, 10], xp: 5, drops: [['ender_pearl', 0, 1, null, 0.7]], sound: 'enderman' },
   blaze: { name: 'Blaze', model: 'blaze', hw: 0.3, h: 1.8, health: 20, speed: 2.4, hostile: true, flying: true, fireImmune: true, xp: 10, drops: [['blaze_rod', 0, 1, null, 0.8]], sound: 'blaze' },
   zombie_pigman: { name: 'Zombie Pigman', model: 'zombie_pigman', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: true, neutral: true, damage: [5, 9, 13], undead: true, fireImmune: true, xp: 5, drops: [['rotten_flesh', 0, 1], ['gold_nugget', 0, 1]], sound: 'pigman' },
   ghast: { name: 'Ghast', model: 'ghast', hw: 2, h: 4, health: 10, speed: 1.4, hostile: true, flying: true, fireImmune: true, xp: 5, scale: 4, drops: [['ghast_tear', 0, 1], ['gunpowder', 0, 2]], sound: 'ghast' },
   wolf: { name: 'Wolf', model: 'wolf', hw: 0.3, h: 0.85, health: 8, speed: 3.0, neutral: true, damage: [3, 4, 6], drops: [], sound: 'wolf', meats: ['beef', 'steak', 'porkchop', 'cooked_porkchop', 'chicken', 'cooked_chicken', 'mutton', 'cooked_mutton', 'rotten_flesh'] },
-  slime: { name: 'Slime', model: 'slime', hw: 1.02, h: 2.04, health: 16, speed: 2.6, hostile: true, drops: [], sound: 'slime' },
+  slime: { name: 'Slime', model: 'slime', hw: 1.02, h: 2.04, health: 16, speed: 2.6, hostile: true, slimy: true, drops: [], sound: 'slime' },
+  magma_cube: { name: 'Magma Cube', model: 'magma_cube', hw: 1.02, h: 2.04, health: 16, speed: 3.0, hostile: true, slimy: true, fireImmune: true, drops: [], sound: 'slime' },
+  wither_skeleton: { name: 'Wither Skeleton', model: 'wither_skeleton', hw: 0.35, h: 2.4, health: 20, speed: 2.5, hostile: true, undead: true, fireImmune: true, damage: [5, 8, 12], xp: 5, scale: 1.2, drops: [['coal', 0, 1], ['bone', 0, 2]], sound: 'skeleton' },
   squid: { name: 'Squid', model: 'squid', hw: 0.4, h: 0.8, health: 10, speed: 1.8, aquatic: true, despawn: true, drops: [['ink_sac', 1, 3]], sound: 'squid' },
   villager: { name: 'Villager', model: 'villager_farmer', hw: 0.3, h: 1.95, health: 20, speed: 2.0, villager: true, drops: [], sound: 'villager' },
   iron_golem: { name: 'Iron Golem', model: 'iron_golem', hw: 0.7, h: 2.7, health: 100, speed: 1.8, golem: true, damage: [7, 14, 21], drops: [['iron_ingot', 3, 5], ['poppy', 0, 2]], sound: 'golem' },
@@ -77,8 +80,8 @@ export function createMob(type, x, y, z) {
 }
 
 // Slimes come in three sizes; each size has its own box and health (size squared).
-export function createSlime(size, x, y, z) {
-  const e = createMob('slime', x, y, z);
+export function createSlime(size, x, y, z, type = 'slime') {
+  const e = createMob(type, x, y, z);
   e.size = size;
   e.hw = 0.255 * size;
   e.h = 0.51 * size;
@@ -262,16 +265,20 @@ export function hurtMob(e, amount, game, source = {}) {
 function dropLoot(e, game) {
   if (e.growUp < 0) return;
   const byPlayer = e.lastHitByPlayer !== undefined && game.tickCount - e.lastHitByPlayer < 100;
-  if (e.type === 'slime') {
+  if (e.def.slimy) {
     // Big slimes break into two to four smaller ones; the smallest leave slimeballs.
+    // Bigger magma cubes sometimes drop magma cream.
+    if (e.type === 'magma_cube' && e.size > 1 && Math.random() < 0.25 + (e.looting ?? 0) * 0.1) {
+      game.dropStacks([e.pos[0], e.pos[1] + 0.3, e.pos[2]], [{ item: 'magma_cream', count: 1 }]);
+    }
     if (e.size > 1) {
       const n = 2 + Math.floor(Math.random() * 3);
       for (let i = 0; i < n; i++) {
-        const child = createSlime(e.size / 2, e.pos[0] + (Math.random() - 0.5) * e.hw, e.pos[1] + 0.3, e.pos[2] + (Math.random() - 0.5) * e.hw);
+        const child = createSlime(e.size / 2, e.pos[0] + (Math.random() - 0.5) * e.hw, e.pos[1] + 0.3, e.pos[2] + (Math.random() - 0.5) * e.hw, e.type);
         child.vel = [(Math.random() - 0.5) * 3, 3, (Math.random() - 0.5) * 3];
         game.entities.add(child);
       }
-    } else {
+    } else if (e.type === 'slime') {
       const balls = Math.floor(Math.random() * 3) + Math.floor(Math.random() * ((e.looting ?? 0) + 1));
       if (balls) game.dropStacks([e.pos[0], e.pos[1] + 0.3, e.pos[2]], [{ item: 'slimeball', count: balls }]);
     }
@@ -363,7 +370,7 @@ export function tickMob(e, game) {
   } else if (e.type === 'wolf') wolfAI(e, game, wish, target);
   else if (e.type === 'squid') squidAI(e, game, wish);
   else if (e.type === 'ghast') ghastAI(e, game, wish, target);
-  else if (e.type === 'slime') slimeAI(e, game, wish, target);
+  else if (def.slimy) slimeAI(e, game, wish, target);
   else if (def.passive) passiveAI(e, game, wish);
   else if (e.type === 'skeleton') skeletonAI(e, game, wish, target);
   else if (e.type === 'creeper') creeperAI(e, game, wish, target);
@@ -440,6 +447,10 @@ function environment(e, game) {
     e.fire = 0;
   }
   if (cactus && e.age % 10 === 0) hurtMob(e, 1, game, { kind: 'cactus' });
+  if (e.poison > 0) {
+    e.poison--;
+    if (e.age % 25 === 0 && e.health > 1) hurtMob(e, 1, game, { kind: 'poison' });
+  }
   if (e.type === 'enderman' && (inWater || inRain) && e.age % 10 === 0) {
     hurtMob(e, 1, game, { kind: 'water' });
     teleportRandomly(e, game);
@@ -825,7 +836,7 @@ function slimeAI(e, game, wish, target) {
       }
       const len = Math.hypot(dx, dz) || 1;
       e.hop = [dx / len, dz / len];
-      e.vel[1] = 6 + e.size * 0.4;
+      e.vel[1] = (e.type === 'magma_cube' ? 8 : 6) + e.size * 0.4;
       e.bodyYaw = e.yaw = Math.atan2(-dx, -dz);
     }
   } else if (e.hop) {
@@ -835,11 +846,14 @@ function slimeAI(e, game, wish, target) {
   }
   e.wasOnGround = e.onGround;
   // Bigger slimes hurt on contact; the smallest are harmless.
-  if (target && e.size > 1 && e.attackCooldown === 0) {
+  const magma = e.type === 'magma_cube';
+  if (target && (e.size > 1 || magma) && e.attackCooldown === 0) {
     const dist = Math.hypot(target.pos[0] - e.pos[0], target.pos[2] - e.pos[2]);
     if (dist < e.hw + 0.6 && target.pos[1] < e.pos[1] + e.h && target.pos[1] + 1.8 > e.pos[1]) {
       e.attackCooldown = 10;
-      game.damagePlayer(e.size === 4 ? [3, 4, 6][difficultyIndex(game.difficulty)] : [1, 2, 3][difficultyIndex(game.difficulty)], 'mob', e);
+      const d = difficultyIndex(game.difficulty);
+      const dmg = e.size === 4 ? (magma ? [4, 6, 9] : [3, 4, 6])[d] : e.size === 2 ? (magma ? [3, 4, 6] : [1, 2, 3])[d] : [2, 3, 4][d];
+      game.damagePlayer(dmg, 'mob', e);
     }
   }
 }
@@ -865,7 +879,9 @@ function meleeAI(e, game, wish, target) {
     e.attackCooldown = 20;
     e.attackAnim = 1;
     const dmg = def.damage[difficultyIndex(game.difficulty)];
-    if (p === game.player) game.damagePlayer(dmg, 'mob', e);
+    if (p === game.player) {
+      if (game.damagePlayer(dmg, 'mob', e) && e.type === 'wither_skeleton') addEffect(p, 'wither', 0, 200);
+    }
     else hurtMob(p, dmg, game, { kind: 'mob', attacker: e, dir: [p.pos[0] - e.pos[0], 0, p.pos[2] - e.pos[2]] });
   }
   if (Math.random() < 0.004) game.sound(`${def.sound}_say`, e.pos);
