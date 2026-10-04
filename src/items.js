@@ -129,6 +129,7 @@ mat('bone_meal', 'Bone Meal', { use: 'bone_meal' });
 mat('leather', 'Leather');
 mat('brick', 'Brick');
 mat('clay_ball', 'Clay Ball');
+mat('lapis_lazuli', 'Lapis Lazuli');
 mat('paper', 'Paper');
 mat('book', 'Book');
 mat('wheat', 'Wheat');

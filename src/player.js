@@ -37,6 +37,10 @@ export class Player {
     this.collidedH = false;
     this.autoJump = false;
     this.fallDistance = 0;
+    // Experience survives respawning stats; death takes it separately.
+    this.xpLevel = 0;
+    this.xpProgress = 0;
+    this.enchantSeed = (Math.random() * 2 ** 31) | 0;
     this.resetStats();
   }
 

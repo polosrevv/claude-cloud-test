@@ -177,6 +177,8 @@ const VOICES = {
   splash: (v) => hiss('lowpass', 900, 0.5, 0.25 * v),
   rain: (v) => { hiss('bandpass', 2600, 0.75, 0.05 * v, 0, 0.4); hiss('lowpass', 600, 0.75, 0.05 * v, 0, 0.5); },
   thunder: (v) => { hiss('lowpass', 1800, 0.35, 0.45 * v, 0, 0.5); hiss('lowpass', 150, 3.2, 0.7 * v, 0.08, 0.7); tone('sine', 55, 26, 2.6, 0.3 * v, 0.05); },
+  orb: (v) => tone('sine', 1500 + Math.random() * 900, 2400, 0.08, 0.08 * v),
+  enchant: (v) => { for (let i = 0; i < 6; i++) tone('sine', 700 + i * 160, 1100 + i * 200, 0.3, 0.06 * v, i * 0.07); },
   levelup: (v) => { tone('sine', 523, 523, 0.25, 0.12 * v); tone('sine', 659, 659, 0.25, 0.12 * v, 0.12); tone('sine', 784, 784, 0.45, 0.12 * v, 0.24); },
   break_tool: (v) => { hiss('highpass', 2000, 0.3, 0.2 * v); tone('square', 900, 300, 0.2, 0.08 * v); },
 };

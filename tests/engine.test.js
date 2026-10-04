@@ -33,6 +33,21 @@ test('every block face points at a real texture', () => {
   assert.equal(tex.data.length, 16 * 16 * 4 * TEXTURE_NAMES.length);
 });
 
+test('solid cube blocks have fully opaque textures', () => {
+  // Catches a texture name being reused (and overwritten) by something see-through.
+  const tex = generateTextures();
+  for (let id = 1; id < BLOCK_COUNT; id++) {
+    const b = BLOCKS[id];
+    if (RENDER_TYPE[id] !== RENDER.CUBE || b.opaque === false || b.cutout || b.translucent) continue;
+    for (let f = 0; f < 6; f++) {
+      const layer = FACE_TEX[id * 6 + f];
+      const name = TEXTURE_NAMES[layer];
+      const t = tex.tiles[name];
+      for (let i = 3; i < t.length; i += 4) assert.equal(t[i], 255, `${b.key} face ${f} (${name}) has see-through pixels`);
+    }
+  }
+});
+
 test('block models stay inside their block', () => {
   for (let id = 1; id < BLOCK_COUNT; id++) {
     if (RENDER_TYPE[id] !== RENDER.MODEL || !MODELS[id]) continue;

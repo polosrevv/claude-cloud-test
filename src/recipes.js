@@ -76,6 +76,9 @@ shaped('oak_slab', 6, ['PPP'], { P: '#planks' });
 shaped('golden_apple', 1, ['GGG', 'GAG', 'GGG'], { G: 'gold_ingot', A: 'apple' });
 shapeless('blaze_powder', 2, ['blaze_rod']);
 shapeless('eye_of_ender', 1, ['ender_pearl', 'blaze_powder']);
+shaped('enchanting_table', 1, [' B ', 'DOD', 'OOO'], { B: 'book', D: 'diamond', O: 'obsidian' });
+shaped('lapis_block', 1, ['XXX', 'XXX', 'XXX'], { X: 'lapis_lazuli' });
+shapeless('lapis_lazuli', 9, ['lapis_block']);
 
 export const SMELTING = {
   iron_ore: 'iron_ingot',
@@ -93,6 +96,14 @@ export const SMELTING = {
   coal_ore: 'coal',
   diamond_ore: 'diamond',
   nether_quartz_ore: 'quartz',
+  lapis_ore: 'lapis_lazuli',
+};
+
+// Experience a furnace stores for each item it smelts, paid out when you take the result.
+export const SMELT_XP = {
+  iron_ore: 0.7, gold_ore: 1, diamond_ore: 1, coal_ore: 0.1, lapis_ore: 0.2, nether_quartz_ore: 0.2,
+  sand: 0.1, cobblestone: 0.1, clay_ball: 0.3, oak_log: 0.15, birch_log: 0.15, spruce_log: 0.15,
+  porkchop: 0.35, beef: 0.35, chicken: 0.35, mutton: 0.35,
 };
 
 for (const r of RECIPES) {

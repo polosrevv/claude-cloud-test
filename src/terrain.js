@@ -296,6 +296,8 @@ function createOverworld(seed) {
     vein(B.DIAMOND_ORE, r() < 0.6 ? 1 : 2, 5, 5, 16);
     vein(B.GRAVEL, 3, 18, 8, 90);
     vein(B.DIRT, 3, 18, 8, 90);
+    // Added last so the veins above stay where they were in older worlds.
+    if (r() < 0.8) vein(B.LAPIS_ORE, 1, 7, 5, 32);
   }
 
   function addPlants(data, heights, biomes, x0, z0) {

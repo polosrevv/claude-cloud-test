@@ -922,7 +922,9 @@ export class Renderer {
     gl.uniform3f(cp.u.uOffset, 0, 0, 0);
     gl.uniform2f(cp.u.uFog, 1000, 1001);
     gl.uniform1f(cp.u.uBrightness, hand.light);
-    gl.uniform4f(cp.u.uOverlay, 0, 0, 0, 0);
+    // Enchanted items shimmer purple.
+    if (hand.glint) gl.uniform4f(cp.u.uOverlay, 0.62, 0.36, 1, 0.16 + 0.1 * Math.sin(frame.time * 3));
+    else gl.uniform4f(cp.u.uOverlay, 0, 0, 0, 0);
     gl.uniform1i(cp.u.uTranslucent, entry.translucent ? 1 : 0);
     if (entry.translucent) {
       gl.enable(gl.BLEND);

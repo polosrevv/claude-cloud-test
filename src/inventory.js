@@ -1,10 +1,15 @@
 // Inventories, Minecraft-style slot clicking, furnace smelting and chest loot.
 import { ITEMS, maxStack } from './items.js';
-import { matchRecipe, SMELTING } from './recipes.js';
+import { matchRecipe, SMELTING, SMELT_XP } from './recipes.js';
 import { mulberry32 } from './noise.js';
 
-export const clone = (s) => (s ? { item: s.item, count: s.count, damage: s.damage || 0 } : null);
-export const canStack = (a, b) => !!a && !!b && a.item === b.item && maxStack(a.item) > 1 && !(a.damage || b.damage);
+export const clone = (s) => {
+  if (!s) return null;
+  const c = { item: s.item, count: s.count, damage: s.damage || 0 };
+  if (s.ench && Object.keys(s.ench).length) c.ench = { ...s.ench };
+  return c;
+};
+export const canStack = (a, b) => !!a && !!b && a.item === b.item && maxStack(a.item) > 1 && !(a.damage || b.damage) && !a.ench && !b.ench;
 
 export class Inventory {
   constructor(size) {
@@ -32,7 +37,7 @@ export class Inventory {
     for (const i of idx) {
       if (left > 0 && !this.slots[i]) {
         const n = Math.min(maxStack(stack.item), left);
-        this.slots[i] = { item: stack.item, count: n, damage: stack.damage || 0 };
+        this.slots[i] = { ...clone(stack), count: n };
         left -= n;
       }
     }
@@ -112,8 +117,12 @@ function accepts(slot, stack) {
   if (slot.kind === 'result' || slot.kind === 'craft-result') return false;
   if (slot.kind === 'armor') return ITEMS[stack.item]?.armor?.slot === slot.armorSlot;
   if (slot.kind === 'fuel') return (ITEMS[stack.item]?.fuel ?? 0) > 0;
+  if (slot.kind === 'lapis') return stack.item === 'lapis_lazuli';
   return true;
 }
+
+// Armour and the enchanting table's item slot hold a single item.
+const slotLimit = (slot, item) => (slot.kind === 'armor' || slot.kind === 'enchant-item' ? 1 : maxStack(item));
 
 // Left (button 0) or right (button 2) click on a normal slot with the cursor.
 export function clickSlot(holder, slot, button) {
@@ -125,13 +134,13 @@ export function clickSlot(holder, slot, button) {
       slot.inv.slots[slot.index] = null;
     } else if (!s) {
       if (!accepts(slot, cur)) return;
-      const limit = slot.kind === 'armor' ? 1 : maxStack(cur.item);
+      const limit = slotLimit(slot, cur.item);
       const n = Math.min(cur.count, limit);
       slot.inv.slots[slot.index] = { ...clone(cur), count: n };
       cur.count -= n;
       if (cur.count <= 0) holder.cursor = null;
     } else if (canStack(s, cur)) {
-      const n = Math.min(maxStack(s.item) - s.count, cur.count);
+      const n = Math.min(slotLimit(slot, s.item) - s.count, cur.count);
       s.count += n;
       cur.count -= n;
       if (cur.count <= 0) holder.cursor = null;
@@ -151,7 +160,7 @@ export function clickSlot(holder, slot, button) {
       slot.inv.slots[slot.index] = { ...clone(cur), count: 1 };
       cur.count -= 1;
       if (cur.count <= 0) holder.cursor = null;
-    } else if (canStack(s, cur) && s.count < maxStack(s.item)) {
+    } else if (canStack(s, cur) && s.count < slotLimit(slot, s.item)) {
       s.count += 1;
       cur.count -= 1;
       if (cur.count <= 0) holder.cursor = null;
@@ -173,11 +182,11 @@ export function quickMove(slot, targets) {
       if (left <= 0) break;
       const other = t.inv.slots[t.index];
       if (pass === 0 && other && canStack(other, s)) {
-        const n = Math.min(maxStack(s.item) - other.count, left);
+        const n = Math.min(slotLimit(t, s.item) - other.count, left);
         other.count += n;
         left -= n;
       } else if (pass === 1 && !other) {
-        const limit = t.kind === 'armor' ? 1 : maxStack(s.item);
+        const limit = slotLimit(t, s.item);
         const n = Math.min(limit, left);
         t.inv.slots[t.index] = { ...clone(s), count: n };
         left -= n;
@@ -241,6 +250,7 @@ export function tickFurnace(f) {
     f.cook++;
     if (f.cook >= SMELT_TICKS) {
       f.cook = 0;
+      f.xp = (f.xp ?? 0) + (SMELT_XP[input.item] ?? 0.1);
       input.count -= 1;
       if (input.count <= 0) f.slots[0] = null;
       if (output) output.count += 1;

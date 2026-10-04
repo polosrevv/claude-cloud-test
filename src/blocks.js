@@ -176,6 +176,20 @@ for (let f = 0; f < 4; f++) {
   });
 }
 def({ key: 'ice', name: 'Ice', tex: 'ice', opaque: false, translucent: true, selfCull: true, sound: 'glass', hardness: 0.5, tool: 'pickaxe', drops: null, slippery: true });
+// ---- Enchanting (new blocks always go at the end so saved ids stay valid) ----
+def({ key: 'lapis_ore', name: 'Lapis Lazuli Ore', tex: 'lapis_ore', ...stoneLike({ hardness: 3, tier: 1, drops: { item: 'lapis_lazuli', min: 4, max: 8 } }) });
+def({ key: 'lapis_block', name: 'Lapis Lazuli Block', tex: 'lapis_block', ...stoneLike({ hardness: 3, tier: 1 }) });
+const TABLE_SIDE = [0, 4, 16, 16];
+def({
+  key: 'enchanting_table', name: 'Enchanting Table', tex: { top: 'enchanting_table_top', bottom: 'obsidian', side: 'enchanting_table_side' },
+  render: RENDER.MODEL,
+  model: [
+    { from: [0, 0, 0], to: [16, 12, 16], uv: { 0: TABLE_SIDE, 1: TABLE_SIDE, 4: TABLE_SIDE, 5: TABLE_SIDE } },
+    { from: [4, 13, 5], to: [12, 15, 11], tex: 'enchanting_book' },
+  ],
+  collision: [[0, 0, 0, 1, 0.75, 1]],
+  opaque: false, emit: 7, ...stoneLike({ hardness: 5, resistance: 1200 }), use: 'enchant',
+});
 
 export const BLOCK_COUNT = DEFS.length;
 if (BLOCK_COUNT > 256) throw new Error('Too many block states for a byte');

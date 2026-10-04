@@ -4,12 +4,14 @@ import { B, BLOCKS, FLUID, FLUID_LEVEL } from '../src/blocks.js';
 import { ITEMS } from '../src/items.js';
 import { RECIPES, TAGS, SMELTING, matchRecipe } from '../src/recipes.js';
 import { Inventory, PlayerInventory, clickSlot, quickMove, takeCraft, newFurnace, tickFurnace, SMELT_TICKS } from '../src/inventory.js';
-import { breakSeconds, canHarvest, dropsFor } from '../src/drops.js';
+import { breakSeconds, canHarvest, dropsFor, blockXp } from '../src/drops.js';
 import { runCommand, complete } from '../src/commands.js';
 import { MOBS, createMob, findPath } from '../src/mobs.js';
 import { tryLightPortal, checkEndPortal } from '../src/portals.js';
 import { ADVANCEMENTS } from '../src/advancements.js';
 import { Weather } from '../src/weather.js';
+import { ENCHANTMENTS, fits, enchantOffers, rollEnchantments, addPoints, totalPoints, xpToNext, splitXp } from '../src/enchantments.js';
+import { clone, canStack } from '../src/inventory.js';
 import { flatWorld, blockSim } from './helpers.js';
 
 const grid = (rows) => rows.flat();
@@ -397,4 +399,79 @@ test('rain comes and goes, and only falls where the sky is open', () => {
   assert.equal(weather.rain, 0);
   // The Nether never sees rain.
   assert.equal(weather.kindAt({ dimension: 'nether' }, 0, 0), null);
+});
+
+test('experience levels follow Minecraft\'s curve', () => {
+  assert.equal(xpToNext(0), 7);
+  assert.equal(xpToNext(15), 37);
+  assert.equal(xpToNext(30), 112);
+  let st = addPoints({ level: 0, progress: 0 }, 7);
+  assert.deepEqual(st, { level: 1, progress: 0 });
+  st = addPoints({ level: 0, progress: 0 }, 1395); // exactly level 30
+  assert.equal(st.level, 30);
+  assert.equal(totalPoints(st), 1395);
+  assert.deepEqual(addPoints({ level: 2, progress: 0 }, -1).level, 1);
+  assert.equal(splitXp(100).reduce((a, b) => a + b, 0), 100);
+  assert.ok(blockXp(B.DIAMOND_ORE) >= 3 && blockXp(B.DIAMOND_ORE) <= 7);
+  assert.equal(blockXp(B.STONE), 0);
+});
+
+test('enchantments only go on the right items', () => {
+  assert.ok(fits('efficiency', 'diamond_pickaxe'));
+  assert.ok(fits('sharpness', 'iron_sword'));
+  assert.ok(!fits('sharpness', 'iron_pickaxe'));
+  assert.ok(fits('protection', 'iron_chestplate'));
+  assert.ok(fits('feather_falling', 'diamond_boots'));
+  assert.ok(!fits('feather_falling', 'diamond_helmet'));
+  assert.ok(fits('infinity', 'bow'));
+  assert.ok(fits('unbreaking', 'shears'));
+  assert.ok(!fits('unbreaking', 'dirt'));
+  for (const key of Object.keys(ENCHANTMENTS)) assert.ok(ENCHANTMENTS[key].max >= 1);
+});
+
+test('the enchanting table offers more with more bookshelves', () => {
+  const seed = 1234;
+  const none = enchantOffers('diamond_pickaxe', 0, seed);
+  const full = enchantOffers('diamond_pickaxe', 15, seed);
+  assert.deepEqual(enchantOffers('diamond_pickaxe', 15, seed), full, 'offers are stable for a seed');
+  assert.ok(none.every((o) => !o || o.cost <= 8));
+  assert.equal(full[2].cost, 30);
+  for (const o of full) {
+    assert.ok(o.ench.length >= 1);
+    for (const e of o.ench) {
+      assert.ok(fits(e.key, 'diamond_pickaxe'));
+      assert.ok(e.level >= 1 && e.level <= ENCHANTMENTS[e.key].max);
+    }
+    // Silk Touch and Fortune never come together.
+    const keys = o.ench.map((e) => e.key);
+    assert.ok(!(keys.includes('silk_touch') && keys.includes('fortune')));
+  }
+  assert.deepEqual(enchantOffers('dirt', 15, seed), [null, null, null]);
+  // A level-30 roll on a sword is a damage enchantment or something compatible with one.
+  for (let i = 0; i < 50; i++) {
+    const roll = rollEnchantments('diamond_sword', 30, i);
+    const damage = roll.filter((e) => ['sharpness', 'smite', 'bane_of_arthropods'].includes(e.key));
+    assert.ok(damage.length <= 1);
+  }
+});
+
+test('enchantments change mining and drops', () => {
+  assert.ok(breakSeconds(B.STONE, 'iron_pickaxe', { efficiency: 5 }) < breakSeconds(B.STONE, 'iron_pickaxe'));
+  // Efficiency does nothing when the tool is wrong for the block.
+  assert.equal(breakSeconds(B.STONE, 'iron_shovel', { efficiency: 5 }), breakSeconds(B.STONE, 'iron_shovel'));
+  assert.deepEqual(dropsFor(B.STONE, 'iron_pickaxe', { silk: true }), [{ item: 'stone', count: 1 }]);
+  assert.deepEqual(dropsFor(B.DIAMOND_ORE, 'iron_pickaxe', { silk: true }), [{ item: 'diamond_ore', count: 1 }]);
+  assert.deepEqual(dropsFor(B.GLASS, null, { silk: true }), [{ item: 'glass', count: 1 }]);
+  let most = 0;
+  for (let i = 0; i < 200; i++) most = Math.max(most, dropsFor(B.DIAMOND_ORE, 'iron_pickaxe', { fortune: 3 })[0].count);
+  assert.equal(most, 4);
+});
+
+test('enchanted stacks keep their enchantments and never stack', () => {
+  const s = { item: 'diamond_sword', count: 1, damage: 5, ench: { sharpness: 3 } };
+  const c = clone(s);
+  assert.deepEqual(c.ench, { sharpness: 3 });
+  c.ench.sharpness = 1;
+  assert.equal(s.ench.sharpness, 3, 'a copy, not a reference');
+  assert.equal(canStack({ item: 'bow', count: 1, ench: { power: 1 } }, { item: 'bow', count: 1 }), false);
 });

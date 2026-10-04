@@ -10,6 +10,7 @@ const KINDS = {
   heart: { tex: 'particle_smoke', color: [1, 0.2, 0.3], size: [0.07, 0.09], life: [0.8, 1.2], rise: 0.6, gravity: 0, uw: 1 },
   crit: { tex: 'particle_white', color: [1, 0.95, 0.7], size: [0.03, 0.05], life: [0.3, 0.6], rise: 0, gravity: 10, uw: 1 },
   splash: { tex: 'particle_white', color: [0.6, 0.75, 1], size: [0.03, 0.05], life: [0.3, 0.6], rise: 2, gravity: 16, uw: 1 },
+  magic: { tex: 'particle_white', color: [0.72, 0.42, 1], size: [0.03, 0.05], life: [0.5, 1], rise: 0.5, gravity: 0, uw: 1 },
   explosion: { tex: 'particle_smoke', color: [0.85, 0.85, 0.85], size: [0.3, 0.6], life: [0.4, 0.9], rise: 0.3, gravity: 0, uw: 1 },
 };
 

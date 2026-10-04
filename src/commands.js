@@ -3,6 +3,7 @@ import { ITEMS, findItem, itemName } from './items.js';
 import { B, BLOCKS } from './blocks.js';
 import { MOBS, createMob } from './mobs.js';
 import { HEIGHT } from './constants.js';
+import { ENCHANTMENTS, enchantName, fits } from './enchantments.js';
 
 const GAMEMODES = { survival: 'survival', s: 'survival', 0: 'survival', creative: 'creative', c: 'creative', 1: 'creative', spectator: 'spectator', sp: 'spectator', 3: 'spectator' };
 const DIFFICULTIES = { peaceful: 'peaceful', p: 'peaceful', 0: 'peaceful', easy: 'easy', e: 'easy', 1: 'easy', normal: 'normal', n: 'normal', 2: 'normal', hard: 'hard', h: 'hard', 3: 'hard' };
@@ -18,6 +19,8 @@ export const COMMANDS = {
   tp: { usage: '/tp <x> <y> <z>', about: 'Teleport (use ~ for relative coordinates)' },
   give: { usage: '/give <item> [count]', about: 'Give yourself items' },
   summon: { usage: '/summon <mob> [x y z]', about: 'Spawn a mob' },
+  xp: { usage: '/xp <amount>[L] or /xp add|set <amount> [levels|points]', about: 'Give yourself experience' },
+  enchant: { usage: '/enchant <enchantment> [level]', about: 'Enchant the item in your hand' },
   kill: { usage: '/kill [@e|@e[type=<mob>]]', about: 'Kill yourself or mobs' },
   setblock: { usage: '/setblock <x> <y> <z> <block>', about: 'Place one block' },
   fill: { usage: '/fill <x1> <y1> <z1> <x2> <y2> <z2> <block>', about: 'Fill a box with a block' },
@@ -128,6 +131,39 @@ export function runCommand(game, text) {
       }
       game.hud.refreshHotbar();
       say(`Gave ${count} [${itemName(item)}]`);
+      break;
+    }
+    case 'xp':
+    case 'experience': {
+      const words = args.filter((a) => !a.startsWith('@'));
+      let mode = 'add';
+      if (['add', 'set', 'query'].includes(words[0])) mode = words.shift();
+      if (mode === 'query') { say(`You are level ${p.xpLevel}`); break; }
+      const n = parseInt(words[0] ?? '', 10);
+      if (!Number.isFinite(n)) { err(`Usage: ${COMMANDS.xp.usage}`); break; }
+      const levels = /l$/i.test(words[0]) || /^level/i.test(words[1] ?? '');
+      if (levels) {
+        p.xpLevel = Math.max(0, mode === 'set' ? n : p.xpLevel + n);
+        if (mode === 'set') p.xpProgress = 0;
+        say(mode === 'set' ? `Set your level to ${p.xpLevel}` : `Gave ${n} experience levels`);
+      } else {
+        if (mode === 'set') { p.xpLevel = 0; p.xpProgress = 0; }
+        game.addXp(n);
+        say(mode === 'set' ? `Set your experience to ${n} points` : `Gave ${n} experience points`);
+      }
+      break;
+    }
+    case 'enchant': {
+      const words = args.filter((a) => !a.startsWith('@'));
+      const key = words[0]?.toLowerCase().replace(/^minecraft:/, '');
+      const held = game.heldStack();
+      if (!ENCHANTMENTS[key]) { err(`Unknown enchantment. Try: ${Object.keys(ENCHANTMENTS).join(', ')}`); break; }
+      if (!held) { err('Hold the item you want to enchant'); break; }
+      if (!fits(key, held.item)) { err(`${ITEMS[held.item].name} can't be enchanted with ${ENCHANTMENTS[key].name}`); break; }
+      const lvl = Math.max(1, Math.min(ENCHANTMENTS[key].max, Number(words[1]) || 1));
+      held.ench = { ...(held.ench || {}), [key]: lvl };
+      game.hud.refreshHotbar();
+      say(`Applied ${enchantName(key, lvl)} to ${ITEMS[held.item].name}`);
       break;
     }
     case 'summon': {
@@ -248,6 +284,8 @@ export function complete(text) {
   else if (cmd === 'gamerule' && parts.length === 3) options = ['true', 'false'];
   else if (cmd === 'locate') options = ['stronghold', 'fortress'];
   else if (cmd === 'weather' && parts.length === 2) options = ['clear', 'rain', 'thunder'];
+  else if (cmd === 'enchant' && parts.length === 2) options = Object.keys(ENCHANTMENTS);
+  else if (cmd === 'xp' && parts.length === 2) options = ['add', 'set', 'query'];
   else if (cmd === 'kill') options = ['@s', '@e', ...Object.keys(MOBS).map((m) => `@e[type=${m}]`)];
   return options.filter((o) => o.toLowerCase().startsWith(last)).map((o) => head + o);
 }

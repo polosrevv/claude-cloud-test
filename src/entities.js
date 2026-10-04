@@ -2,7 +2,7 @@
 // Everything ticks at 20 per second; the renderer interpolates between ticks.
 import { SOLID, FLUID, COLLISION } from './blocks.js';
 import { moveBody, boxesOverlap } from './physics.js';
-import { canStack } from './inventory.js';
+import { canStack, clone } from './inventory.js';
 import { maxStack } from './items.js';
 import { MOBS, tickMob, createMob } from './mobs.js';
 
@@ -41,10 +41,22 @@ export class Entity {
 
 export function itemEntity(stack, x, y, z, vel = null, delay = 10) {
   const e = new Entity('item', 'item', x, y, z);
-  e.stack = { item: stack.item, count: stack.count, damage: stack.damage || 0 };
+  e.stack = clone(stack);
   e.vel = vel ?? [(Math.random() - 0.5) * 2, 3 + Math.random(), (Math.random() - 0.5) * 2];
   e.pickupDelay = delay;
   e.spin = Math.random() * Math.PI * 2;
+  return e;
+}
+
+// An experience orb worth `value` points; it drifts to a nearby player.
+export function xpOrb(value, x, y, z) {
+  const e = new Entity('xp', 'xp', x, y, z);
+  e.value = value;
+  e.hw = 0.125;
+  e.h = 0.25;
+  e.vel = [(Math.random() - 0.5) * 4, 2 + Math.random() * 2, (Math.random() - 0.5) * 4];
+  e.pickupDelay = 10;
+  e.spin = Math.random() * 100;
   return e;
 }
 
@@ -169,6 +181,7 @@ export class EntityManager {
       e.age++;
       switch (e.kind) {
         case 'item': this.tickItem(e); break;
+        case 'xp': this.tickXp(e); break;
         case 'projectile': this.tickProjectile(e); break;
         case 'tnt': this.tickTnt(e); break;
         case 'mob': tickMob(e, game); break;
@@ -223,6 +236,38 @@ export class EntityManager {
           game.hud?.refreshHotbar();
         }
       }
+    }
+  }
+
+  tickXp(e) {
+    const game = this.game;
+    const p = game.player;
+    const fluid = this.fall(e, 12, 0.7);
+    if (fluid === 2) {
+      e.removed = true;
+      return;
+    }
+    if (e.age > 6000) e.removed = true;
+    if (e.pickupDelay > 0) {
+      e.pickupDelay--;
+      return;
+    }
+    if (p.dead || p.spectator || game.state === 'dead') return;
+    const dx = p.pos[0] - e.pos[0];
+    const dy = p.pos[1] + 0.9 - e.pos[1];
+    const dz = p.pos[2] - e.pos[2];
+    const d = Math.hypot(dx, dy, dz);
+    if (d < 8) {
+      // Pulled in harder the closer it gets, like Minecraft's orbs.
+      const pull = (1 - d / 8) ** 2 * 3;
+      e.vel[0] = e.vel[0] * 0.88 + (dx / d) * pull;
+      e.vel[1] = e.vel[1] * 0.88 + (dy / d) * pull + 0.5;
+      e.vel[2] = e.vel[2] * 0.88 + (dz / d) * pull;
+    }
+    if (d < 1.2 && (p.xpCooldown ?? 0) <= 0) {
+      p.xpCooldown = 2;
+      e.removed = true;
+      game.addXp(e.value);
     }
   }
 
@@ -377,6 +422,7 @@ export function serializeEntity(e) {
     return { ...base, health: e.health, baby: e.growUp ?? 0, sheared: !!e.sheared, persistent: !!e.persistent };
   }
   if (e.kind === 'crystal') return { ...base };
+  if (e.kind === 'xp') return { ...base, value: e.value, age: e.age };
   return null;
 }
 
@@ -398,6 +444,12 @@ export function deserializeEntity(s) {
     return e;
   }
   if (s.kind === 'crystal') return endCrystal(x, y, z);
+  if (s.kind === 'xp') {
+    const e = xpOrb(s.value ?? 1, x, y, z);
+    e.vel = [0, 0, 0];
+    e.age = s.age ?? 0;
+    return e;
+  }
   return null;
 }
 

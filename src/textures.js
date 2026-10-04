@@ -405,6 +405,42 @@ const GEN = {
   iron_ore(t, r) { ore(t, r, [214, 174, 146], 4); },
   gold_ore(t, r) { ore(t, r, [246, 212, 64], 4); },
   diamond_ore(t, r) { ore(t, r, [92, 226, 218], 4); },
+  lapis_ore(t, r) { ore(t, r, [34, 76, 196], 5); },
+  lapis_block(t, r) {
+    noiseFill(t, r, [30, 64, 170], 0.08);
+    for (let i = 0; i < 18; i++) put(t, (r() * TILE) | 0, (r() * TILE) | 0, mul([70, 110, 220], jitter(r, 0.1)));
+    for (let i = 0; i < 10; i++) put(t, (r() * TILE) | 0, (r() * TILE) | 0, [214, 180, 60]);
+    for (let k = 0; k < TILE; k++) {
+      put(t, k, 0, [22, 46, 128]);
+      put(t, 0, k, [22, 46, 128]);
+      put(t, k, 15, [16, 34, 100]);
+      put(t, 15, k, [16, 34, 100]);
+    }
+  },
+  enchanting_table_top(t, r) {
+    noiseFill(t, r, [150, 30, 36], 0.08);
+    for (let k = 0; k < TILE; k++) {
+      put(t, k, 0, [30, 22, 40]); put(t, k, 15, [30, 22, 40]);
+      put(t, 0, k, [30, 22, 40]); put(t, 15, k, [30, 22, 40]);
+    }
+    for (const [x, y] of [[1, 1], [13, 1], [1, 13], [13, 13]]) rect(t, x, y, x + 1, y + 1, [92, 226, 218], r, 0.06);
+    // A thin gold border around the cloth.
+    for (let k = 3; k < 13; k++) {
+      put(t, k, 3, [214, 170, 60]); put(t, k, 12, [214, 170, 60]);
+      put(t, 3, k, [214, 170, 60]); put(t, 12, k, [214, 170, 60]);
+    }
+  },
+  enchanting_table_side(t, r) {
+    GEN.obsidian(t, r);
+    rect(t, 0, 4, 15, 6, [150, 30, 36], r, 0.08);
+    for (let k = 0; k < TILE; k += 3) put(t, k, 6, [214, 170, 60]);
+    put(t, 2, 10, [92, 226, 218]); put(t, 13, 10, [92, 226, 218]);
+  },
+  enchanting_book(t, r) {
+    noiseFill(t, r, [120, 52, 30], 0.08);
+    rect(t, 0, 0, 15, 2, [236, 226, 196], r, 0.03);
+    rect(t, 7, 0, 8, 15, [70, 30, 18], r, 0.03);
+  },
   glowstone(t, r) {
     const shades = Array.from({ length: 8 }, () => 0.78 + r() * 0.28);
     voronoi(r, 8, (x, y, n, edge) => {
@@ -736,8 +772,17 @@ const GEN = {
     }
   },
   particle_white(t) { for (let i = 0; i < t.length; i++) t[i] = 255; },
+  xp_orb(t, r) {
+    clear(t);
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const d = Math.hypot(x - 7.5, y - 7.5);
+        if (d < 4.6) put(t, x, y, d < 2.2 ? [250, 255, 170] : d < 3.6 ? mul([196, 238, 70], jitter(r, 0.05)) : [92, 128, 20]);
+      }
+    }
+  },
   // Weather tiles repeat vertically: streaks of rain and loose snowflakes.
-  rain(t, r) {
+  weather_rain(t, r) {
     clear(t);
     for (let i = 0; i < 3; i++) {
       const x = (i * 5 + Math.floor(r() * 4)) % TILE;
@@ -746,7 +791,7 @@ const GEN = {
       for (let k = 0; k < len; k++) put(t, x, (y0 + k) % TILE, mul([168, 190, 232], 0.85 + r() * 0.2), 120 + k * 18);
     }
   },
-  snow(t, r) {
+  weather_snow(t, r) {
     clear(t);
     for (let i = 0; i < 3; i++) {
       const x = Math.floor(r() * 15);

@@ -26,8 +26,15 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
 
 - **Survival stats.** You have health, hunger and saturation, and air underwater. You take damage from falls, lava, fire, cactus, drowning, starving and the void. Armour soaks up damage. When you die, you drop your items and respawn at your bed or the world spawn.
 - **Mining.** Breaking times use Minecraft's formula. The right tool is faster, and harder blocks need a better pickaxe: stone for iron, iron for gold and diamond, diamond for obsidian. Tools wear out.
-- **Crafting.** There's a 2×2 grid in your inventory and a 3×3 grid at a crafting table, with 84 recipes. These include tools, armour, torches, beds, doors, buckets, bows and arrows, TNT, and eyes of ender. The screens work like Minecraft's: click to pick up or place, right-click to split or place one, shift-click to move a stack, and number keys to swap with the hotbar.
+- **Crafting.** There's a 2×2 grid in your inventory and a 3×3 grid at a crafting table, with 87 recipes. These include tools, armour, torches, beds, doors, buckets, bows and arrows, TNT, and eyes of ender. The screens work like Minecraft's: click to pick up or place, right-click to split or place one, shift-click to move a stack, and number keys to swap with the hotbar.
 - **Furnaces** smelt ores, cook food and burn fuel while you're away. **Chests** store 27 stacks.
+- **Experience.** Orbs come from mobs you kill, ores you mine, animals you breed and furnaces you empty. They drift toward you and fill the XP bar, using Minecraft's level curve. You drop some of your experience when you die.
+- **Enchanting.** Mine lapis lazuli deep underground and build an enchanting table from a book, diamonds and obsidian. Each of its three offers costs levels and lapis. Bookshelves around the table raise the offers up to level 30. There are 19 enchantments, and each does what it does in Minecraft:
+  - Tools: Efficiency, Silk Touch, Fortune and Unbreaking.
+  - Swords: Sharpness, Smite, Bane of Arthropods, Knockback, Fire Aspect and Looting.
+  - Bows: Power, Punch, Flame and Infinity.
+  - Armour: Protection, Fire Protection, Feather Falling, Respiration and Aqua Affinity.
+  - Enchanted items shimmer, and their tooltips list what they carry.
 - **Food.** You can eat bread, apples, golden apples, and raw or cooked meat. Rotten flesh and raw chicken might make you hungry. You can also drink milk.
 
 ### Mobs
@@ -65,7 +72,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - You get there by building a 4×5 obsidian frame and lighting it with flint and steel. Distances there are scaled 8 to 1, and the game builds a portal for you on the far side if there isn't one.
   - Inside: netherrack, soul sand, glowstone, lava seas and nether fortresses.
 - **The End.** It has the end stone island, obsidian pillars topped with end crystals that heal the dragon, the dragon fight, the exit portal, the dragon egg and the credits.
-- **Advancements.** 23 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
+- **Advancements.** 24 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
 
 ### Engine
 
@@ -109,6 +116,8 @@ Commands work in worlds created with cheats on. Coordinates accept `~` for "rela
 | `/tp <x> <y> <z>` | Teleport |
 | `/give <item> [count]` | Give yourself items |
 | `/summon <mob> [x y z]` | Spawn a mob |
+| `/xp <amount>[L]`, `/xp add\|set <amount> [levels\|points]` | Give yourself experience |
+| `/enchant <enchantment> [level]` | Enchant the item in your hand |
 | `/kill [@e\|@e[type=<mob>]]` | Kill yourself, or all mobs |
 | `/setblock`, `/fill` | Place one block, or fill a box |
 | `/clear`, `/heal`, `/spawnpoint` | Inventory, health and spawn helpers |
@@ -127,7 +136,8 @@ src/blocks.js         block registry (140 block states) and lookup tables
 src/items.js          item registry: blocks, tools, armour, food, materials
 src/recipes.js        crafting and smelting recipes
 src/inventory.js      inventories, slot clicking, crafting grids, furnaces, loot
-src/drops.js          breaking times, harvest rules and block drops
+src/drops.js          breaking times, harvest rules, block drops and ore experience
+src/enchantments.js   enchantments, the enchanting table's offers and the experience curve
 src/terrain.js        Overworld generation; src/nether.js and src/end.js for the other dimensions
 src/structures.js     trees, dungeons, strongholds and nether fortresses
 src/world.js          one dimension's loaded chunks, edits, block entities and parked entities
@@ -164,4 +174,4 @@ npm test
 The tests use Node's built-in test runner. They cover:
 
 - **World:** terrain determinism in all three dimensions, structures, cross-chunk trees, meshing and culling, lighting, raycasting, saving edits, and player physics.
-- **Rules:** recipes, inventory clicking, furnaces, mining speeds and harvest tiers, flowing water and lava, falling blocks, crop and tree growth, portals, pathfinding, weather, advancements and commands.
+- **Rules:** recipes, inventory clicking, furnaces, mining speeds and harvest tiers, flowing water and lava, falling blocks, crop and tree growth, portals, pathfinding, weather, enchanting and experience, advancements and commands.

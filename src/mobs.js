@@ -10,12 +10,12 @@ export const MOBS = {
   cow: { name: 'Cow', model: 'cow', hw: 0.45, h: 1.4, health: 10, speed: 2.0, passive: true, food: 'wheat', drops: [['beef', 1, 3, 'steak'], ['leather', 0, 2]], sound: 'cow' },
   sheep: { name: 'Sheep', model: 'sheep', hw: 0.45, h: 1.3, health: 8, speed: 2.0, passive: true, food: 'wheat', drops: [['mutton', 1, 2, 'cooked_mutton']], sound: 'sheep' },
   chicken: { name: 'Chicken', model: 'chicken', hw: 0.2, h: 0.7, health: 4, speed: 2.0, passive: true, food: 'wheat_seeds', drops: [['chicken', 1, 1, 'cooked_chicken'], ['feather', 0, 2]], sound: 'chicken', slowFall: true },
-  zombie: { name: 'Zombie', model: 'zombie', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: true, damage: [2, 3, 4], burns: true, drops: [['rotten_flesh', 0, 2]], sound: 'zombie' },
-  skeleton: { name: 'Skeleton', model: 'skeleton', hw: 0.3, h: 1.99, health: 20, speed: 2.5, hostile: true, ranged: true, burns: true, drops: [['bone', 0, 2], ['arrow', 0, 2]], sound: 'skeleton' },
-  creeper: { name: 'Creeper', model: 'creeper', hw: 0.3, h: 1.7, health: 20, speed: 2.4, hostile: true, explodes: true, drops: [['gunpowder', 0, 2]], sound: 'creeper' },
-  spider: { name: 'Spider', model: 'spider', hw: 0.7, h: 0.9, health: 16, speed: 3.0, hostile: true, damage: [2, 2, 3], climbs: true, drops: [['string', 0, 2]], sound: 'spider' },
-  enderman: { name: 'Enderman', model: 'enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.0, hostile: true, neutral: true, damage: [4, 7, 10], drops: [['ender_pearl', 0, 1, null, 0.7]], sound: 'enderman' },
-  blaze: { name: 'Blaze', model: 'blaze', hw: 0.3, h: 1.8, health: 20, speed: 2.4, hostile: true, flying: true, fireImmune: true, drops: [['blaze_rod', 0, 1, null, 0.8]], sound: 'blaze' },
+  zombie: { name: 'Zombie', model: 'zombie', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: true, damage: [2, 3, 4], burns: true, undead: true, xp: 5, drops: [['rotten_flesh', 0, 2]], sound: 'zombie' },
+  skeleton: { name: 'Skeleton', model: 'skeleton', hw: 0.3, h: 1.99, health: 20, speed: 2.5, hostile: true, ranged: true, burns: true, undead: true, xp: 5, drops: [['bone', 0, 2], ['arrow', 0, 2]], sound: 'skeleton' },
+  creeper: { name: 'Creeper', model: 'creeper', hw: 0.3, h: 1.7, health: 20, speed: 2.4, hostile: true, explodes: true, xp: 5, drops: [['gunpowder', 0, 2]], sound: 'creeper' },
+  spider: { name: 'Spider', model: 'spider', hw: 0.7, h: 0.9, health: 16, speed: 3.0, hostile: true, damage: [2, 2, 3], climbs: true, arthropod: true, xp: 5, drops: [['string', 0, 2]], sound: 'spider' },
+  enderman: { name: 'Enderman', model: 'enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.0, hostile: true, neutral: true, damage: [4, 7, 10], xp: 5, drops: [['ender_pearl', 0, 1, null, 0.7]], sound: 'enderman' },
+  blaze: { name: 'Blaze', model: 'blaze', hw: 0.3, h: 1.8, health: 20, speed: 2.4, hostile: true, flying: true, fireImmune: true, xp: 10, drops: [['blaze_rod', 0, 1, null, 0.8]], sound: 'blaze' },
   dragon: { name: 'Ender Dragon', model: 'dragon', hw: 4, h: 4, health: 200, speed: 12, hostile: true, boss: true, fireImmune: true, drops: [], sound: 'dragon' },
 };
 
@@ -230,14 +230,18 @@ function dropLoot(e, game) {
   if (e.growUp < 0) return;
   const byPlayer = e.lastHitByPlayer !== undefined && game.tickCount - e.lastHitByPlayer < 100;
   const stacks = [];
+  // Looting adds up to its level to each drop, as in Minecraft.
+  const looting = byPlayer ? e.looting ?? 0 : 0;
   for (const [item, min, max, cooked, chance = 1] of e.def.drops) {
-    if (Math.random() > chance) continue;
-    const n = min + Math.floor(Math.random() * (max - min + 1));
+    if (Math.random() > Math.min(1, chance + looting * 0.1)) continue;
+    const n = min + Math.floor(Math.random() * (max - min + 1)) + Math.floor(Math.random() * (looting + 1));
     if (n > 0) stacks.push({ item: e.fire > 0 && cooked ? cooked : item, count: n });
   }
   if (e.type === 'sheep' && !e.sheared) stacks.push({ item: 'wool_white', count: 1 });
   if (e.type === 'creeper' && !byPlayer) stacks.length = 0;
   game.dropStacks([e.pos[0], e.pos[1] + 0.5, e.pos[2]], stacks);
+  // Experience only comes from kills the player had a hand in.
+  if (byPlayer) game.spawnXp?.([e.pos[0], e.pos[1] + 0.5, e.pos[2]], e.def.xp ?? 1 + Math.floor(Math.random() * 3));
 }
 
 export function teleportRandomly(e, game, toward = null) {
@@ -491,6 +495,7 @@ function passiveAI(e, game, wish) {
         const baby = createMob(e.type, e.pos[0], e.pos[1], e.pos[2]);
         baby.growUp = -6000;
         game.entities.add(baby);
+        game.spawnXp?.([e.pos[0], e.pos[1] + 0.5, e.pos[2]], 1 + Math.floor(Math.random() * 7));
         game.particles.burst([e.pos[0], e.pos[1] + 1, e.pos[2]], 'heart', 6, 0.6);
       }
       return;

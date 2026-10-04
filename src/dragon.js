@@ -170,6 +170,8 @@ export class DragonFight {
     d.pos[1] += 0.08;
     d.bodyYaw += 0.02;
     d.yaw = d.bodyYaw;
+    // The dragon's 12,000 experience fountains out as it dies.
+    if (d.deathTime % 10 === 0 && !this.state.killed) game.spawnXp?.([d.pos[0], d.pos[1], d.pos[2]], 600);
     if (d.deathTime % 4 === 0) {
       game.particles.burst([d.pos[0] + (Math.random() - 0.5) * 8, d.pos[1] + 2 + (Math.random() - 0.5) * 4, d.pos[2] + (Math.random() - 0.5) * 8], 'smoke', 8, 1.2);
       game.sound('explode_small', d.pos);

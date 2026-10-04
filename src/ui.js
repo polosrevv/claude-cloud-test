@@ -9,11 +9,17 @@ import { runCommand, complete } from './commands.js';
 import { BIOME_NAMES } from './terrain.js';
 import { clockLabel } from './sky.js';
 import { BLOCKS } from './blocks.js';
+import { describe, enchantName } from './enchantments.js';
 
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// An enchanted item's moving sheen, masked to the icon's shape.
+function glint(stack, src) {
+  return stack.ench ? `<span class="glint" style="--icon:url('${src}')"></span>` : '';
 }
 
 function durabilityBar(stack) {
@@ -57,7 +63,7 @@ export class Hud {
       b.type = 'button';
       b.className = `hslot${i === game.selected ? ' selected' : ''}`;
       b.setAttribute('aria-label', s ? `Slot ${i + 1}: ${ITEMS[s.item].name}${s.count > 1 ? ` x${s.count}` : ''}` : `Slot ${i + 1}: empty`);
-      b.innerHTML = s ? `<img alt="" src="${this.icon(s.item)}">${s.count > 1 ? `<span class="n">${s.count}</span>` : ''}${durabilityBar(s)}` : '';
+      b.innerHTML = s ? `<img alt="" src="${this.icon(s.item)}">${glint(s, this.icon(s.item))}${s.count > 1 ? `<span class="n">${s.count}</span>` : ''}${durabilityBar(s)}` : '';
       b.addEventListener('click', () => game.selectSlot(i));
       els.push(b);
     }
@@ -69,7 +75,7 @@ export class Hud {
   showHeldName() {
     const s = this.game.heldStack();
     const el = $('held-name');
-    el.textContent = s ? ITEMS[s.item].name : '';
+    el.textContent = s ? [ITEMS[s.item].name, ...describe(s)].join(' · ') : '';
     el.classList.remove('fade');
     clearTimeout(this.heldTimer);
     this.heldTimer = setTimeout(() => el.classList.add('fade'), 1400);
@@ -100,6 +106,13 @@ export class Hud {
         else $('armor-bar').innerHTML = '';
         $('air-bar').innerHTML = p.headInWater || p.air < 300 ? Array.from({ length: air }, () => `<img alt="" src="${this.icons.bubble}">`).join('') : '';
       }
+    }
+    const xpKey = survival ? `${p.xpLevel}|${Math.round(p.xpProgress * 182)}` : '';
+    if (xpKey !== this.lastXp) {
+      this.lastXp = xpKey;
+      $('xp').hidden = !survival;
+      $('xp-fill').style.width = `${Math.round(p.xpProgress * 1000) / 10}%`;
+      $('xp-level').textContent = p.xpLevel > 0 ? String(p.xpLevel) : '';
     }
     $('underwater').hidden = !(p.headInWater && !p.dead);
     $('fire-tint').hidden = !(p.fireTicks > 0 && survival && !p.dead);
@@ -173,7 +186,7 @@ export class Hud {
 
   advancement(a) {
     const el = $('advancement');
-    const item = a.has?.[0] ?? { kill: 'iron_sword', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
+    const item = a.has?.[0] ?? { kill: 'iron_sword', enchant: 'enchanting_table', sleep: 'bed', nether: 'obsidian', fortress: 'nether_bricks', stronghold: 'eye_of_ender', end: 'end_stone', dragon: 'dragon_egg' }[a.event] ?? 'iron_armor';
     $('adv-icon').src = this.icon(ITEMS[item] ? item : 'grass');
     $('adv-title').textContent = a.title;
     el.classList.remove('out');
@@ -322,6 +335,11 @@ export class Hud {
       if (grid.slots[i]) returns.push(grid.slots[i]);
       grid.slots[i] = null;
     }
+    // The enchanting table holds nothing once you walk away.
+    if (this.window.kind === 'enchant') {
+      for (const s of this.window.data.slots) if (s) returns.push(s);
+      this.window.data.slots = [null, null];
+    }
     for (const s of returns) {
       const left = inv.give(s);
       if (left) game.throwStack({ ...s, count: left });
@@ -341,7 +359,8 @@ export class Hud {
 
   slotHtml(stack, ghost = false) {
     if (!stack) return '';
-    return `<img alt="" src="${this.icon(stack.item)}"${ghost ? ' class="ghost"' : ''}>${stack.count > 1 ? `<span class="n">${stack.count}</span>` : ''}${durabilityBar(stack)}`;
+    const src = this.icon(stack.item);
+    return `<img alt="" src="${src}"${ghost ? ' class="ghost"' : ''}>${glint(stack, src)}${stack.count > 1 ? `<span class="n">${stack.count}</span>` : ''}${durabilityBar(stack)}`;
   }
 
   // Builds the window markup and a table of slot references for clicks.
@@ -410,6 +429,34 @@ export class Hud {
           ${slot({ inv: fInv, index: 2, kind: 'result', section: 'output' }, 'big')}
         </div>
         ${player()}`;
+    } else if (w.kind === 'enchant') {
+      title = 'Enchant';
+      const table = w.data;
+      const tInv = { slots: table.slots };
+      const p = game.player;
+      const lapis = table.slots[1]?.item === 'lapis_lazuli' ? table.slots[1].count : 0;
+      const offers = game.enchantOffersFor(table);
+      const rows = offers.map((o, i) => {
+        if (!o) return '<button type="button" class="ench-offer" disabled><span></span><span class="ench-name"></span><span></span></button>';
+        const can = !p.vulnerable || (p.xpLevel >= o.cost && lapis >= o.lapis);
+        const why = !can ? (p.xpLevel < o.cost ? `Needs level ${o.cost}` : `Needs ${o.lapis} lapis lazuli`) : `Costs ${o.lapis} level${o.lapis > 1 ? 's' : ''} and ${o.lapis} lapis`;
+        return `<button type="button" class="ench-offer" data-offer="${i}"${can ? '' : ' aria-disabled="true"'} title="${escapeHtml(why)}">
+          <span class="ench-lapis" aria-hidden="true">${'◆'.repeat(o.lapis)}</span>
+          <span class="ench-name">${escapeHtml(enchantName(o.hint.key, o.hint.level))}${o.ench.length > 1 ? ' . . . ?' : ''}</span>
+          <span class="ench-cost">${o.cost}</span>
+        </button>`;
+      }).join('');
+      const shelves = game.countBookshelves(table);
+      body = `
+        <div class="gui-row" style="justify-content:center;align-items:flex-start">
+          <div class="stack-col">
+            ${slot({ inv: tInv, index: 0, kind: 'enchant-item', section: 'enchant', empty: 'Item to enchant' })}
+            ${slot({ inv: tInv, index: 1, kind: 'lapis', section: 'lapis', empty: 'Lapis lazuli' })}
+          </div>
+          <div class="ench-offers">${rows}</div>
+        </div>
+        <div class="side-note" style="max-width:none">Your level: <b>${p.vulnerable ? p.xpLevel : '∞'}</b> · Bookshelves: <b>${shelves}</b>/15. Bookshelves two blocks from the table make stronger offers.</div>
+        ${player()}`;
     } else if (w.kind === 'chest') {
       title = 'Chest';
       body = `${grid(9, range({ slots: w.data.slots }, 0, 27, 'normal', 'chest'))}${player()}`;
@@ -430,6 +477,13 @@ export class Hud {
     el.innerHTML = `<div class="gui" role="dialog" aria-label="${title}"><div class="gui-head"><span class="gui-title">${title}</span><button type="button" class="btn small" id="window-close">Done</button></div>${body}</div>`;
     this.refs = refs;
     $('window-close').addEventListener('click', () => this.closeScreen());
+    el.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      if (game.enchantItem(w.data, Number(b.dataset.offer))) {
+        this.renderWindow();
+        this.refreshHotbar();
+      }
+    }));
     el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
       this.creativeTab = b.dataset.tab;
       this.renderWindow();
@@ -477,8 +531,8 @@ export class Hud {
       this.hoverRef = ref;
       if (s && !this.game.inventory.cursor && e.pointerType === 'mouse') {
         const item = ITEMS[s.item];
-        const dur = item.durability && s.damage ? ` · ${item.durability - s.damage}/${item.durability}` : '';
-        tip.textContent = `${item.name}${dur}`;
+        const dur = item.durability && s.damage ? `Durability ${item.durability - s.damage} / ${item.durability}` : '';
+        tip.innerHTML = `${escapeHtml(item.name)}${describe(s).map((l) => `<br><span class="ench">${escapeHtml(l)}</span>`).join('')}${dur ? `<br><span class="dim">${dur}</span>` : ''}`;
         tip.style.left = `${e.clientX + 14}px`;
         tip.style.top = `${e.clientY - 28}px`;
         tip.hidden = false;
@@ -576,6 +630,7 @@ export class Hud {
           ref.inv.slots[ref.index] = null;
         }
         game.advancements.check({ main: { slots: [inv.cursor ?? s] }, armor: inv.armor });
+        if (w?.kind === 'furnace' && ref.inv.slots[ref.index] !== s) game.collectFurnaceXp(w.data);
       }
     } else if (shift) {
       quickMove(ref, this.shiftTargets(ref));
@@ -599,12 +654,14 @@ export class Hud {
         if (item?.armor && this.window.kind === 'inventory') return [...by('armor').filter((r) => r.armorSlot === item.armor.slot), ...by('hotbar')];
         if (this.window.kind === 'furnace') return SMELTING[s.item] ? by('input') : item?.fuel ? by('fuel') : by('hotbar');
         if (this.window.kind === 'chest') return by('chest');
+        if (this.window.kind === 'enchant') return s.item === 'lapis_lazuli' ? by('lapis') : by('enchant');
         return by('hotbar');
       }
       case 'hotbar': {
         if (item?.armor && this.window.kind === 'inventory') return [...by('armor').filter((r) => r.armorSlot === item.armor.slot), ...by('main')];
         if (this.window.kind === 'furnace') return SMELTING[s.item] ? by('input') : item?.fuel ? by('fuel') : by('main');
         if (this.window.kind === 'chest') return by('chest');
+        if (this.window.kind === 'enchant') return s.item === 'lapis_lazuli' ? by('lapis') : by('enchant');
         return by('main');
       }
       default:

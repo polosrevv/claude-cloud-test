@@ -16,6 +16,7 @@ export const ADVANCEMENTS = [
   { id: 'diamonds', title: 'Diamonds!', about: 'Acquire diamonds (they lie deep, below y=16)', has: ['diamond'] },
   { id: 'lava', title: 'Hot Stuff', about: 'Fill a bucket with lava', has: ['lava_bucket'] },
   { id: 'obsidian', title: 'Ice Bucket Challenge', about: 'Pour water on still lava and mine the obsidian with a diamond pickaxe', has: ['obsidian'] },
+  { id: 'enchant', title: 'Enchanter', about: 'Enchant an item at an enchanting table made from a book, two diamonds and four obsidian', event: 'enchant' },
   { id: 'nether', title: 'We Need to Go Deeper', about: 'Build a 4x5 obsidian frame, light it with flint and steel, and step through', event: 'nether' },
   { id: 'fortress', title: 'A Terrible Fortress', about: 'Break your way into a Nether Fortress', event: 'fortress' },
   { id: 'blaze_rod', title: 'Into Fire', about: 'Relieve a Blaze of its rod', has: ['blaze_rod'] },

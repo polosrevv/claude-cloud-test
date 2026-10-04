@@ -17,7 +17,8 @@ export function canHarvest(id, itemKey) {
 }
 
 // Seconds to break a block in survival, or Infinity when it can't be broken.
-export function breakSeconds(id, itemKey, { inWater = false, onGround = true } = {}) {
+// efficiency: the tool's Efficiency level (it only helps when the tool already helps).
+export function breakSeconds(id, itemKey, { inWater = false, onGround = true, efficiency = 0 } = {}) {
   const def = BLOCKS[id];
   if (def.hardness < 0) return Infinity;
   if (def.hardness === 0) return 0;
@@ -26,6 +27,7 @@ export function breakSeconds(id, itemKey, { inWater = false, onGround = true } =
   if (tool && def.tool && tool.type === def.tool) speed = tool.speed;
   if (tool?.type === 'shears' && (def.leaves || def.key.startsWith('wool'))) speed = def.leaves ? 15 : 5;
   if (tool?.type === 'sword' && def.leaves) speed = 1.5;
+  if (efficiency > 0 && speed > 1) speed += efficiency * efficiency + 1;
   if (inWater) speed /= 5;
   if (!onGround) speed /= 5;
   const perTick = speed / def.hardness / (canHarvest(id, itemKey) ? 30 : 100);
@@ -37,11 +39,21 @@ function roll(min, max) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
+// Ores whose drops Fortune multiplies.
+const FORTUNE_ORES = new Set(['coal_ore', 'diamond_ore', 'lapis_ore', 'nether_quartz_ore']);
+// Blocks Silk Touch can't lift whole: they come in parts or have no item.
+const NO_SILK = (def) => def.crop !== undefined || def.door || def.bed || def.portal || def.entity === 'spawner';
+
 // Item stacks a block gives when broken with `itemKey` in hand.
-export function dropsFor(id, itemKey) {
+// silk: Silk Touch drops the block itself; fortune: Fortune's level.
+export function dropsFor(id, itemKey, { silk = false, fortune = 0 } = {}) {
   const def = BLOCKS[id];
   if (!canHarvest(id, itemKey)) return [];
   const tool = toolOf(itemKey);
+  if (silk && !NO_SILK(def)) {
+    const whole = itemForBlock(id);
+    if (whole) return [{ item: whole, count: 1 }];
+  }
   if (def.leaves) {
     if (tool?.type === 'shears') return [{ item: def.key, count: 1 }];
     const out = [];
@@ -51,7 +63,7 @@ export function dropsFor(id, itemKey) {
     if (Math.random() < 0.02) out.push({ item: 'stick', count: 1 + Math.floor(Math.random() * 2) });
     return out;
   }
-  if (id === B.GRAVEL) return [{ item: Math.random() < 0.1 ? 'flint' : 'gravel', count: 1 }];
+  if (id === B.GRAVEL) return [{ item: Math.random() < [0.1, 0.14, 0.25, 1][Math.min(3, fortune)] ? 'flint' : 'gravel', count: 1 }];
   if (id === B.TALL_GRASS && tool?.type === 'shears') return [{ item: 'tall_grass', count: 1 }];
   const spec = def.drops === undefined ? def.item : def.drops;
   if (spec === null || spec === undefined) return [];
@@ -63,10 +75,23 @@ export function dropsFor(id, itemKey) {
       continue;
     }
     if (s.chance !== undefined && Math.random() > s.chance) continue;
-    const n = roll(s.min ?? 1, s.max ?? 1);
+    let n = roll(s.min ?? 1, s.max ?? 1);
+    if (id === B.GLOWSTONE && fortune) n = Math.min(4, n + roll(0, fortune));
     if (n > 0) out.push({ item: s.item, count: n });
   }
+  // Fortune: Minecraft's ore bonus multiplies the drop by 1 to (level + 1).
+  if (fortune > 0 && FORTUNE_ORES.has(def.key)) {
+    const mult = Math.max(0, roll(0, fortune + 1) - 1) + 1;
+    for (const o of out) o.count *= mult;
+  }
   return out;
+}
+
+// Experience a block gives when mined by a player (none with Silk Touch).
+const BLOCK_XP = { coal_ore: [0, 2], diamond_ore: [3, 7], lapis_ore: [2, 5], nether_quartz_ore: [2, 5], spawner: [15, 43] };
+export function blockXp(id) {
+  const range = BLOCK_XP[BLOCKS[id].key];
+  return range ? roll(range[0], range[1]) : 0;
 }
 
 export function pickItemForBlock(id) {
