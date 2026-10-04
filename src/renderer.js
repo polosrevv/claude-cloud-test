@@ -709,7 +709,7 @@ export class Renderer {
     const cam = frame.cam;
     for (const ent of list) {
       const model = this.modelMesh(ent.model);
-      const alpha = ent.model === 'crystal';
+      const alpha = ent.model === 'crystal' || ent.model === 'slime';
       if (alpha) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -741,6 +741,7 @@ export class Renderer {
         if (rz) m = multiply(m, rotationZ(rz));
         if (ry) m = multiply(m, rotationY(ry));
         if (rx) m = multiply(m, rotationX(rx));
+        if (a.scale) m = multiply(m, scaling(...a.scale));
         transforms[part.name] = m;
         gl.uniformMatrix4fv(ep.u.uModel, false, m);
         gl.drawArrays(gl.TRIANGLES, part.range.start, part.range.count);

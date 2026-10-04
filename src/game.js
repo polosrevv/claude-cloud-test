@@ -11,7 +11,7 @@ import { END_SPAWN } from './end.js';
 import { Player } from './player.js';
 import { PlayerInventory, newFurnace, tickFurnace } from './inventory.js';
 import { EntityManager, itemEntity, xpOrb, projectile, primedTnt, serializeEntity, deserializeEntity } from './entities.js';
-import { MOBS, hurtMob } from './mobs.js';
+import { MOBS, hurtMob, createMob } from './mobs.js';
 import { spawnTick, spawnerTick, populateChunk } from './spawning.js';
 import { BlockUpdater } from './blockupdates.js';
 import { DragonFight } from './dragon.js';
@@ -479,6 +479,7 @@ export class Game {
       this.hurtYaw = 0;
     }
     this.lastCause = { cause, source };
+    if (source?.kind === 'mob') this.rallyWolves(source);
     if (p.health <= 0) this.killPlayer(cause, source);
     return true;
   }
@@ -756,7 +757,7 @@ export class Game {
     const look = p.look;
     const reach = p.creative ? 5 : 4.5;
     const block = raycast(this.world, eye, look, reach);
-    const ent = this.entities.raycast(eye, look, p.creative ? 5 : 3.5, (e) => (e.kind === 'mob' && e.deathTime === 0) || e.kind === 'crystal');
+    const ent = this.entities.raycast(eye, look, p.creative ? 5 : 3.5, (e) => (e.kind === 'mob' && e.deathTime === 0) || e.kind === 'crystal' || e.type === 'ghast_fireball');
     if (ent && (!block || ent.distance < block.distance)) this.target = { entity: ent.entity, distance: ent.distance };
     else this.target = block;
   }
@@ -880,7 +881,15 @@ export class Game {
       this.dragonFight.crystalDestroyed(e);
       return;
     }
+    if (e.type === 'ghast_fireball') {
+      // Bat it back where you're looking.
+      e.vel = p.look.map((v) => v * 20);
+      e.owner = 'player';
+      this.sound('arrow_hit', e.pos);
+      return;
+    }
     if (e.kind !== 'mob') return;
+    this.rallyWolves(e);
     const stack = this.heldStack();
     const tool = toolOf(this.heldItem());
     let dmg = tool?.damage ?? 1;
@@ -1032,6 +1041,7 @@ export class Game {
   interactEntity(e, held) {
     if (e.kind !== 'mob') return;
     const def = e.def;
+    if (e.type === 'wolf') return this.interactWolf(e, held);
     if (held && def.food === held.item && def.passive) {
       if (e.growUp < 0) {
         e.growUp = Math.min(0, e.growUp + 600);
@@ -1056,6 +1066,42 @@ export class Game {
       this.damageHeld(1);
       this.swing = 0;
     }
+  }
+
+  // Bones tame a wild wolf (one try in three). A tame wolf sits or stands on a click, and meat heals or breeds it.
+  interactWolf(e, held) {
+    this.swing = 0;
+    if (!e.tamed) {
+      if (held?.item !== 'bone' || e.angry) return;
+      this.consumeHeld();
+      if (Math.random() < 1 / 3 || !this.player.vulnerable) {
+        e.tamed = true;
+        e.sitting = true;
+        e.persistent = true;
+        e.health = 20;
+        e.path = null;
+        this.particles.burst([e.pos[0], e.pos[1] + e.h, e.pos[2]], 'heart', 7, 0.4);
+        this.advancements.event('tame');
+      } else {
+        this.particles.burst([e.pos[0], e.pos[1] + e.h, e.pos[2]], 'smoke', 7, 0.4);
+      }
+      return;
+    }
+    if (held && e.def.meats.includes(held.item)) {
+      if (e.health < 20) {
+        e.health = Math.min(20, e.health + (ITEMS[held.item].food?.hunger ?? 2));
+        this.consumeHeld();
+        return;
+      }
+      if (!e.inLove && !(e.breedCooldown > 0) && !(e.growUp < 0)) {
+        e.inLove = 600;
+        this.consumeHeld();
+        return;
+      }
+    }
+    e.sitting = !e.sitting;
+    e.path = null;
+    e.attackTarget = null;
   }
 
   // Cell the player is building into: the face they clicked, or the clicked block if it can be replaced.
@@ -1093,6 +1139,12 @@ export class Game {
       return true;
     }
     switch (item.use) {
+      case 'throw_egg': {
+        const look = p.look;
+        this.entities.add(projectile('egg', p.eye[0], p.eye[1] - 0.1, p.eye[2], look.map((v) => v * 22), 'player'));
+        this.consumeHeld();
+        return true;
+      }
       case 'throw_pearl': {
         const look = p.look;
         const e = projectile('pearl', p.eye[0], p.eye[1] - 0.1, p.eye[2], look.map((v) => v * 22), 'player');
@@ -1366,6 +1418,23 @@ export class Game {
       this.pearlLand(e);
       return;
     }
+    if (e.type === 'egg') {
+      if (target !== 'player' && target.kind === 'mob') hurtMob(target, 0.01, this, { kind: 'thrown', dir: e.vel, knockback: 0.3 });
+      this.eggLand(e);
+      return;
+    }
+    if (e.type === 'ghast_fireball') {
+      if (target !== 'player' && target.kind === 'mob') {
+        // Your own swing sent it back: a ghast hit by its fireball dies outright.
+        const deflected = e.owner === 'player';
+        hurtMob(target, deflected && target.type === 'ghast' ? 1000 : 6, this, { kind: 'fireball', entity: deflected ? 'player' : null });
+        if (deflected && target.type === 'ghast') this.advancements.event('return_to_sender');
+      } else if (target === 'player') {
+        this.damagePlayer(6, 'fireball', owner ?? e);
+      }
+      this.explode(e.pos[0], e.pos[1], e.pos[2], 1, { source: e, griefing: this.gamerules.mobGriefing, fire: this.gamerules.mobGriefing });
+      return;
+    }
     if (target !== 'player' && target.kind === 'crystal') {
       this.dragonFight.crystalDestroyed(target);
       return;
@@ -1394,11 +1463,31 @@ export class Game {
     if (e.type === 'pearl') {
       e.removed = true;
       this.pearlLand(e);
+    } else if (e.type === 'egg') {
+      e.removed = true;
+      this.eggLand(e);
+    } else if (e.type === 'ghast_fireball') {
+      e.removed = true;
+      const back = hit.point.map((v, a) => v - e.vel[a] * 0.02);
+      this.explode(back[0], back[1], back[2], 1, { source: e, griefing: this.gamerules.mobGriefing, fire: this.gamerules.mobGriefing });
     } else if (e.type === 'fireball') {
       e.removed = true;
       const back = [hit.point[0] - e.vel[0] * 0.01, hit.point[1] - e.vel[1] * 0.01, hit.point[2] - e.vel[2] * 0.01].map(Math.floor);
       if (this.gamerules.mobGriefing && this.world.getBlock(...back) === B.AIR && SOLID[this.world.getBlock(back[0], back[1] - 1, back[2])]) {
         this.world.setBlock(...back, B.FIRE);
+      }
+    }
+  }
+
+  // A thrown egg hatches a chick one time in eight (and four chicks one time in 32 of those).
+  eggLand(e) {
+    this.particles.burst(e.pos, 'crit', 6, 0.2);
+    if (Math.random() < 1 / 8) {
+      const n = Math.random() < 1 / 32 ? 4 : 1;
+      for (let i = 0; i < n; i++) {
+        const chick = createMob('chicken', e.pos[0], e.pos[1], e.pos[2]);
+        chick.growUp = -24000;
+        this.entities.add(chick);
       }
     }
   }
@@ -1668,6 +1757,15 @@ export class Game {
     this.state = 'playing';
   }
 
+  // Tamed wolves go after whatever you fight, or whatever hurts you (never creepers or each other).
+  rallyWolves(foe) {
+    if (!foe || foe.kind !== 'mob' || foe.type === 'creeper' || foe.tamed || foe.type === 'dragon') return;
+    const p = this.player;
+    for (const w of this.entities.mobs((m) => m.type === 'wolf' && m.tamed && !m.sitting && m.deathTime === 0)) {
+      if (Math.hypot(w.pos[0] - p.pos[0], w.pos[2] - p.pos[2]) < 16) w.attackTarget = foe;
+    }
+  }
+
   // ---------------------------------------------------------------- experience and enchanting
 
   spawnXp(pos, points) {
@@ -1747,6 +1845,14 @@ export class Game {
     }
     const near = (e) => e.deathTime === 0 && Math.hypot(e.pos[0] - x, e.pos[1] - y, e.pos[2] - z) < 3.5;
     for (const e of this.entities.mobs(near)) {
+      if (e.type === 'pig') {
+        // A pig struck by lightning becomes a zombie pigman.
+        e.removed = true;
+        const pigman = createMob('zombie_pigman', e.pos[0], e.pos[1], e.pos[2]);
+        pigman.persistent = true;
+        this.entities.add(pigman);
+        continue;
+      }
       if (!e.def.fireImmune) e.fire = Math.max(e.fire, 160);
       hurtMob(e, 5, this, { kind: 'lightning' });
     }
@@ -1784,6 +1890,13 @@ export class Game {
   // ---------------------------------------------------------------- rendering
 
   // Build the renderer's frame description from the current state.
+  // Which model (and skin) a mob wears right now.
+  modelFor(e) {
+    if (e.type === 'ghast') return e.chargeTime > 10 ? 'ghast_fire' : 'ghast';
+    if (e.type === 'wolf') return e.tamed ? 'wolf_tame' : e.angry ? 'wolf_angry' : 'wolf';
+    return MOBS[e.type].model;
+  }
+
   // Rain greys the sky and dims the daylight; lightning flashes it white.
   weatherSky(sky) {
     const w = this.weather;
@@ -1853,7 +1966,7 @@ export class Game {
       if (Math.hypot(pos[0] - cam[0], pos[2] - cam[2]) > settings.renderDistance * CHUNK) continue;
       if (e.kind === 'mob') {
         const baby = e.growUp < 0;
-        const light = e.type === 'blaze' ? [1, 1, 1] : this.lightColor(pos[0], pos[1] + e.h * 0.6, pos[2]);
+        const light = e.type === 'blaze' ? [1, 1, 1] : e.type === 'ghast' ? [0.92, 0.9, 0.9] : this.lightColor(pos[0], pos[1] + e.h * 0.6, pos[2]);
         const hurt = e.hurtTime > 0 || e.deathTime > 0;
         let overlay = hurt ? [1, 0, 0, 0.45] : null;
         let scale = baby ? 0.5 : 1;
@@ -1863,9 +1976,11 @@ export class Game {
           if (Math.floor(e.fuse / 3) % 2 === 0) overlay = [1, 1, 1, 0.5];
         }
         if (e.type === 'dragon') scale = 1.6;
+        if (e.def.scale) scale *= e.def.scale;
+        if (e.size) scale *= e.size;
         const bodyYaw = e.prevBodyYaw !== undefined ? e.prevBodyYaw + ((e.bodyYaw - e.prevBodyYaw)) * alpha : e.bodyYaw;
         entities.push({
-          model: MOBS[e.type].model,
+          model: this.modelFor(e),
           pos: e.type === 'dragon' ? [pos[0], pos[1] + 2, pos[2]] : pos,
           yaw: bodyYaw,
           roll: e.deathTime > 0 && e.type !== 'dragon' ? Math.min(1, e.deathTime / 15) * (Math.PI / 2) : 0,
@@ -1898,7 +2013,8 @@ export class Game {
         items.push({ key: 'tnt', pos: [pos[0], pos[1] + 0.5, pos[2]], yaw: 0, scale: 1 + (e.fuse < 10 ? (10 - e.fuse) * 0.02 : 0), light: this.lightColor(pos[0], pos[1] + 0.5, pos[2])[0], overlay: flash });
       } else if (e.kind === 'projectile') {
         if (e.type === 'arrow') entities.push({ model: 'arrow', pos, yaw: e.yaw, pitch: -e.pitch, scale: 1, light: this.lightColor(pos[0], pos[1], pos[2]), state: e, t: 0 });
-        else if (e.type === 'pearl' || e.type === 'eye') items.push({ key: e.type === 'pearl' ? 'ender_pearl' : 'eye_of_ender', pos: [pos[0], pos[1] - 0.12, pos[2]], yaw: yaw + Math.PI, scale: 0.3, light: 1, sprite: true });
+        else if (e.type === 'pearl' || e.type === 'eye' || e.type === 'egg') items.push({ key: { pearl: 'ender_pearl', eye: 'eye_of_ender', egg: 'egg' }[e.type], pos: [pos[0], pos[1] - 0.12, pos[2]], yaw: yaw + Math.PI, scale: 0.3, light: 1, sprite: true });
+        else if (e.type === 'ghast_fireball') items.push({ key: 'fire_charge', pos: [pos[0], pos[1] + 0.1, pos[2]], yaw: this.tickCount * 0.3, pitch: this.tickCount * 0.2, scale: 0.9, light: 1 });
         else items.push({ key: 'fire_charge', pos: [pos[0], pos[1] - 0.15, pos[2]], yaw: this.tickCount * 0.3, scale: 0.35, light: 1 });
       }
     }

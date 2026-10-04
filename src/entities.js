@@ -4,7 +4,7 @@ import { SOLID, FLUID, COLLISION } from './blocks.js';
 import { moveBody, boxesOverlap } from './physics.js';
 import { canStack, clone } from './inventory.js';
 import { maxStack } from './items.js';
-import { MOBS, tickMob, createMob } from './mobs.js';
+import { MOBS, tickMob, createMob, createSlime } from './mobs.js';
 
 let nextId = 1;
 const DT = 0.05;
@@ -418,8 +418,11 @@ export function serializeEntity(e) {
   const base = { kind: e.kind, type: e.type, pos: e.pos.map((v) => Math.round(v * 100) / 100), yaw: e.yaw };
   if (e.kind === 'item') return { ...base, stack: e.stack, age: e.age };
   if (e.kind === 'mob') {
-    if (MOBS[e.type].hostile && !e.persistent) return null;
-    return { ...base, health: e.health, baby: e.growUp ?? 0, sheared: !!e.sheared, persistent: !!e.persistent };
+    if ((MOBS[e.type].hostile || MOBS[e.type].despawn) && !e.persistent) return null;
+    const out = { ...base, health: e.health, baby: e.growUp ?? 0, sheared: !!e.sheared, persistent: !!e.persistent };
+    if (e.tamed) Object.assign(out, { tamed: true, sitting: !!e.sitting });
+    if (e.size) out.size = e.size;
+    return out;
   }
   if (e.kind === 'crystal') return { ...base };
   if (e.kind === 'xp') return { ...base, value: e.value, age: e.age };
@@ -435,12 +438,14 @@ export function deserializeEntity(s) {
     return e;
   }
   if (s.kind === 'mob' && MOBS[s.type]) {
-    const e = createMob(s.type, x, y, z);
+    const e = s.type === 'slime' ? createSlime(s.size ?? 1, x, y, z) : createMob(s.type, x, y, z);
     e.health = s.health ?? e.health;
     e.yaw = e.bodyYaw = s.yaw ?? 0;
     if (s.baby) e.growUp = s.baby;
     e.sheared = s.sheared;
     e.persistent = s.persistent;
+    e.tamed = !!s.tamed;
+    e.sitting = !!s.sitting;
     return e;
   }
   if (s.kind === 'crystal') return endCrystal(x, y, z);

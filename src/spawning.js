@@ -2,12 +2,14 @@
 // chunks (animal herds, chest loot, spawner settings).
 import { B, SOLID, FLUID, OPAQUE } from './blocks.js';
 import { CHUNK, HEIGHT, blockIndex } from './constants.js';
-import { createMob } from './mobs.js';
+import { createMob, createSlime } from './mobs.js';
 import { generateLoot } from './inventory.js';
-import { hash3 } from './noise.js';
+import { hash2, hash3 } from './noise.js';
+import { boxIsFree } from './physics.js';
+import { BIOME } from './terrain.js';
 import { posKey } from './world.js';
 
-const CAPS = { overworld: 28, nether: 18, end: 16 };
+const CAPS = { overworld: 28, nether: 22, end: 16 };
 
 function pick(weights) {
   let total = 0;
@@ -38,11 +40,55 @@ function floorBelow(world, x, y, z, height, depth = 12) {
   return null;
 }
 
+// One chunk in ten is a slime chunk: slimes spawn there below y = 40 in any light.
+export function slimeChunk(seed, x, z) {
+  return hash2(Math.floor(x / CHUNK), Math.floor(z / CHUNK), seed ^ 0x3ad8025f) < 0.1;
+}
+
+// Squid keep the oceans and lakes company (they have their own small cap).
+function spawnWaterCreature(game) {
+  const world = game.world;
+  const p = game.player;
+  if (game.entities.count((e) => e.type === 'squid') >= 5) return;
+  const a = Math.random() * Math.PI * 2;
+  const d = 20 + Math.random() * 30;
+  const x = Math.floor(p.pos[0] + Math.cos(a) * d);
+  const z = Math.floor(p.pos[2] + Math.sin(a) * d);
+  if (!world.isLoaded(x, z)) return;
+  const top = world.surfaceY(x, z);
+  for (let y = top + 1; y < top + 12; y++) {
+    if (FLUID[world.getBlock(x, y, z)] !== 1) continue;
+    if (FLUID[world.getBlock(x, y + 1, z)] !== 1 || FLUID[world.getBlock(x, y + 2, z)] !== 1) return;
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) game.entities.add(createMob('squid', x + 0.5 + Math.random(), y + 0.5, z + 0.5 + Math.random()));
+    return;
+  }
+}
+
+// Ghasts roam the Nether's big open caverns; they have their own small cap.
+function spawnGhast(game) {
+  const world = game.world;
+  const p = game.player;
+  if (game.entities.count((e) => e.type === 'ghast') >= 3) return;
+  const a = Math.random() * Math.PI * 2;
+  const d = 30 + Math.random() * 30;
+  const x = Math.floor(p.pos[0] + Math.cos(a) * d);
+  const z = Math.floor(p.pos[2] + Math.sin(a) * d);
+  const y = 30 + Math.floor(Math.random() * 70);
+  if (!world.isLoaded(x - 3, z - 3) || !world.isLoaded(x + 3, z + 3)) return;
+  // A big pocket of open air (lava below is fine).
+  if (!boxIsFree(world, x - 2.5, y, z - 2.5, x + 2.5, y + 5, z + 2.5)) return;
+  for (let k = 0; k < 4; k++) if (FLUID[world.getBlock(x, y + k, z)]) return;
+  game.entities.add(createMob('ghast', x + 0.5, y, z + 0.5));
+}
+
 export function spawnTick(game) {
   const world = game.world;
   const p = game.player;
   if (game.difficulty === 'peaceful' || !game.gamerules.doMobSpawning) return;
   const dim = world.dimension;
+  if (dim === 'overworld' && Math.random() < 0.25) spawnWaterCreature(game);
+  if (dim === 'nether' && Math.random() < 0.2) spawnGhast(game);
   const hostile = game.entities.count((e) => e.kind === 'mob' && e.def.hostile && e.type !== 'dragon');
   if (hostile >= CAPS[dim]) return;
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -58,22 +104,29 @@ export function spawnTick(game) {
       const startY = Math.random() < 0.5 ? top + 1 : 2 + Math.floor(Math.random() * Math.max(1, top));
       type = pick([['zombie', 30], ['skeleton', 25], ['creeper', 25], ['spider', 20], ['enderman', 3]]);
       y = floorBelow(world, x, startY, z, type === 'enderman' ? 3 : 2, 24);
+      if (y !== null && y < 40 && slimeChunk(world.seed, x, z) && Math.random() < 0.35) {
+        const size = [1, 2, 4][Math.floor(Math.random() * 3)];
+        if (boxIsFree(world, x + 0.5 - 0.26 * size, y, z + 0.5 - 0.26 * size, x + 0.5 + 0.26 * size, y + 0.52 * size, z + 0.5 + 0.26 * size)) {
+          game.entities.add(createSlime(size, x + 0.5, y, z + 0.5));
+        }
+        continue;
+      }
       if (y === null || game.lightAt(x, y, z) > 7) continue;
     } else if (dim === 'nether') {
       const startY = 20 + Math.floor(Math.random() * 90);
       const inFortress = world.terrain.insideFortress(x, startY, z);
-      type = inFortress ? 'blaze' : pick([['skeleton', 10], ['enderman', 4], ['zombie', 6]]);
+      type = inFortress ? pick([['blaze', 3], ['skeleton', 1], ['zombie_pigman', 1]]) : pick([['zombie_pigman', 12], ['enderman', 1]]);
       y = floorBelow(world, x, startY, z, 2, 30);
       if (y === null) continue;
       if (type === 'blaze' && world.getBlock(x, y - 1, z) !== B.NETHER_BRICKS) continue;
-      if (type !== 'blaze' && Math.random() < 0.6) continue;
+      if (type !== 'blaze' && type !== 'zombie_pigman' && Math.random() < 0.6) continue;
     } else {
       type = 'enderman';
       y = floorBelow(world, x, 80, z, 3, 50);
       if (y === null || world.getBlock(x, y - 1, z) !== B.END_STONE) continue;
     }
     if (Math.hypot(x + 0.5 - p.pos[0], y - p.pos[1], z + 0.5 - p.pos[2]) < 20) continue;
-    const pack = type === 'enderman' || type === 'blaze' ? 1 : 1 + Math.floor(Math.random() * 3);
+    const pack = type === 'enderman' || type === 'blaze' ? 1 : type === 'zombie_pigman' ? 2 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 3);
     for (let i = 0; i < pack; i++) {
       const sx = x + (i ? Math.floor(Math.random() * 5) - 2 : 0);
       const sz = z + (i ? Math.floor(Math.random() * 5) - 2 : 0);
@@ -137,7 +190,9 @@ export function populateChunk(game, world, chunk) {
     }
   }
   if (world.dimension !== 'overworld' || Math.random() > 0.12) return;
-  const type = pick([['pig', 3], ['cow', 3], ['sheep', 4], ['chicken', 3]]);
+  const biome = world.terrain.columnInfo?.(x0 + 8, z0 + 8).biome;
+  const wolves = biome === BIOME.FOREST || biome === BIOME.TUNDRA ? 2 : 0;
+  const type = pick([['pig', 3], ['cow', 3], ['sheep', 4], ['chicken', 3], ['wolf', wolves]]);
   const n = 2 + Math.floor(Math.random() * 3);
   for (let k = 0; k < n; k++) {
     const lx = Math.floor(Math.random() * CHUNK);

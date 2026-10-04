@@ -25,6 +25,10 @@ export const ADVANCEMENTS = [
   { id: 'end', title: 'The End?', about: 'Fill the twelve portal frames with eyes and jump in', event: 'end' },
   { id: 'dragon', title: 'Free the End', about: 'Bring blocks to climb onto the island, shoot the end crystals, then slay the Ender Dragon', event: 'dragon' },
   { id: 'egg', title: 'The Next Generation', about: 'Hold the Dragon Egg', has: ['dragon_egg'] },
+  // Side quests: shown on the advancements screen but never the suggested next goal.
+  { id: 'tame', title: 'Best Friends Forever', about: 'Tame a wolf with bones', event: 'tame', optional: true },
+  { id: 'return_to_sender', title: 'Return to Sender', about: 'Destroy a Ghast with its own fireball', event: 'return_to_sender', optional: true },
+  { id: 'slime', title: 'Squishy', about: 'Collect a slimeball from a small slime deep underground', has: ['slimeball'], optional: true },
 ];
 
 export class Advancements {
@@ -59,7 +63,7 @@ export class Advancements {
 
   // The first advancement not yet earned: the suggested next goal.
   next() {
-    return ADVANCEMENTS.find((a) => !this.done.has(a.id)) ?? null;
+    return ADVANCEMENTS.find((a) => !a.optional && !this.done.has(a.id)) ?? null;
   }
 
   serialize() {

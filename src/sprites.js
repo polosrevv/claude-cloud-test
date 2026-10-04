@@ -295,6 +295,28 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
     item_bone_meal(t, r) { pile(t, r, [236, 234, 226]); },
     item_leather(t, r) { clear(t); disk(t, r, 8, 8, 6, 5.5, [150, 90, 48], 0.1); rim(t); },
     item_rotten_flesh(t, r) { clear(t); disk(t, r, 8, 8.5, 6, 4.5, [120, 110, 56], 0.25); rim(t); },
+    item_gold_nugget(t, r) { clear(t); disk(t, r, 8, 9, 3.2, 2.6, [250, 214, 70], 0.1); disk(t, r, 6.5, 6.5, 1.6, 1.4, [255, 240, 150], 0.05); rim(t, 0.6); },
+    item_ghast_tear(t, r) {
+      clear(t);
+      art(t, r, ['', '', '',
+        '.......o........',
+        '......olo.......',
+        '.....ol##o......',
+        '....ol####o.....',
+        '....o#####o.....',
+        '....o#####o.....',
+        '.....o###o......',
+        '......ooo.......',
+      ], { l: [255, 255, 255], '#': [206, 236, 236], o: [120, 150, 156] });
+    },
+    item_slimeball(t, r) { clear(t); disk(t, r, 8, 8.5, 4.6, 4.2, [120, 200, 96], 0.08); disk(t, r, 6.5, 7, 1.4, 1.2, [190, 240, 170], 0.03); rim(t, 0.55); },
+    item_ink_sac(t, r) {
+      clear(t);
+      disk(t, r, 8, 9, 4.5, 4.8, [40, 40, 52], 0.08);
+      disk(t, r, 8, 4.5, 1.4, 1.6, [60, 60, 74], 0.08);
+      rim(t, 0.5);
+    },
+    item_egg(t, r) { clear(t); disk(t, r, 8, 8.8, 4.2, 5.4, [236, 222, 196], 0.04); disk(t, r, 6.6, 6.6, 1.2, 1.6, [252, 246, 232], 0.02); rim(t, 0.62); },
     item_ender_pearl(t, r) { clear(t); disk(t, r, 8, 8, 5.5, 5.5, [26, 92, 84], 0.1); disk(t, r, 7, 7, 2.5, 2.5, [80, 170, 150], 0.05); rim(t, 0.6); },
     item_eye_of_ender(t, r) {
       clear(t);

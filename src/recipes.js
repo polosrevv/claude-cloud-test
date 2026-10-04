@@ -78,6 +78,8 @@ shapeless('blaze_powder', 2, ['blaze_rod']);
 shapeless('eye_of_ender', 1, ['ender_pearl', 'blaze_powder']);
 shaped('enchanting_table', 1, [' B ', 'DOD', 'OOO'], { B: 'book', D: 'diamond', O: 'obsidian' });
 shaped('lapis_block', 1, ['XXX', 'XXX', 'XXX'], { X: 'lapis_lazuli' });
+shaped('gold_ingot', 1, ['XXX', 'XXX', 'XXX'], { X: 'gold_nugget' });
+shapeless('gold_nugget', 9, ['gold_ingot']);
 shapeless('lapis_lazuli', 9, ['lapis_block']);
 
 export const SMELTING = {

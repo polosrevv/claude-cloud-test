@@ -39,9 +39,13 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
 
 ### Mobs
 
-- **Animals:** pigs, cows, sheep and chickens. They wander, panic when hit and follow you when you hold their food. Feed two to breed them and grow the babies. You can shear sheep and milk cows.
+- **Animals:** pigs, cows, sheep and chickens. They wander, panic when hit and follow you when you hold their food. Feed two to breed them and grow the babies. You can shear sheep and milk cows. Hens lay eggs, which you can throw to hatch chicks. Squid swim in oceans and lakes and drop ink sacs.
+- **Wolves** run in packs in forests and taiga, and the whole pack turns on you if you hit one. Tame one with bones. A tamed wolf wears a collar, follows you (teleporting to catch up), sits when you click it, fights whatever attacks you or whatever you attack, and heals or breeds on meat.
 - **Monsters:**
   - Zombies, skeletons (they shoot arrows), creepers (they hiss and explode), spiders and endermen.
+  - Slimes, which live underground in one chunk in ten, hop after you and split into smaller slimes when killed.
+  - Zombie pigmen, which fill the Nether and leave you alone until you hit one, and then the whole group comes for you. Lightning turns pigs into pigmen.
+  - Ghasts, which drift through the Nether's open caverns and fire explosive fireballs. Hit a fireball to bat it back.
   - Blazes in Nether fortresses, which fly and shoot fireballs.
   - The Ender Dragon.
 - **AI.** Monsters spawn in the dark, path around obstacles with A\*, and burn in sunlight.
@@ -72,7 +76,7 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - You get there by building a 4×5 obsidian frame and lighting it with flint and steel. Distances there are scaled 8 to 1, and the game builds a portal for you on the far side if there isn't one.
   - Inside: netherrack, soul sand, glowstone, lava seas and nether fortresses.
 - **The End.** It has the end stone island, obsidian pillars topped with end crystals that heal the dragon, the dragon fight, the exit portal, the dragon egg and the credits.
-- **Advancements.** 24 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
+- **Advancements.** 27 of them, from *Getting Wood* to *Free the End*. They act as a guide: the next goal is shown in the corner of the screen. Press L to see the whole tree.
 
 ### Engine
 

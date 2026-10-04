@@ -1,7 +1,7 @@
 // Chat commands, Minecraft style: /gamemode, /give, /tp, /time, /summon ...
 import { ITEMS, findItem, itemName } from './items.js';
 import { B, BLOCKS } from './blocks.js';
-import { MOBS, createMob } from './mobs.js';
+import { MOBS, createMob, createSlime } from './mobs.js';
 import { HEIGHT } from './constants.js';
 import { ENCHANTMENTS, enchantName, fits } from './enchantments.js';
 
@@ -167,12 +167,12 @@ export function runCommand(game, text) {
       break;
     }
     case 'summon': {
-      const type = args[0]?.toLowerCase().replace(/^minecraft:/, '').replace('ender_dragon', 'dragon');
+      const type = args[0]?.toLowerCase().replace(/^minecraft:/, '').replace('ender_dragon', 'dragon').replace('zombified_piglin', 'zombie_pigman');
       if (!MOBS[type]) { err(`Unknown mob. Try: ${Object.keys(MOBS).join(', ')}`); break; }
       const x = args.length >= 4 ? coord(args[1], p.pos[0]) : p.pos[0] + p.look[0] * 3;
       const y = args.length >= 4 ? coord(args[2], p.pos[1]) : p.pos[1];
       const z = args.length >= 4 ? coord(args[3], p.pos[2]) : p.pos[2] + p.look[2] * 3;
-      const mob = createMob(type, x, y, z);
+      const mob = type === 'slime' ? createSlime([1, 2, 4][Math.floor(Math.random() * 3)], x, y, z) : createMob(type, x, y, z);
       if (type === 'dragon') { mob.phase = 'circle'; mob.phaseTime = 0; mob.angle = 0; }
       mob.persistent = !MOBS[type].hostile;
       game.entities.add(mob);

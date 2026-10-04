@@ -182,6 +182,49 @@ const SKINS = {
     paintBox(img, 40, 0, 2, 2, 8, scale); // bones and limbs
     for (let y = 44; y < 64; y++) for (let x = 0; x < 64; x++) px(img, x, y, vary(r, [70, 60, 90], 0.12)); // wing membrane
   },
+  zombie_pigman(img, r) {
+    const pink = [228, 150, 146];
+    const rot = [104, 150, 84];
+    paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => {
+      if (face === 'front') {
+        if (y === 3 && (x === 1 || x === 6)) return x === 1 ? [240, 240, 236] : [30, 20, 20];
+        if (y >= 5 && y <= 6 && x >= 2 && x <= 5) return y === 5 && (x === 2 || x === 5) ? [110, 50, 50] : [236, 170, 160];
+        // One side of the face has rotted to the bone.
+        if (x >= 5 && y <= 2) return vary(r, [214, 214, 200], 0.05);
+      }
+      if (face === 'left' && y < 5) return vary(r, [214, 214, 200], 0.06);
+      return vary(r, r() < 0.15 ? rot : pink, 0.06);
+    });
+    paintBox(img, 16, 16, 8, 12, 4, (face, x, y) => {
+      if (y >= 8) return vary(r, [120, 84, 52], 0.06);
+      if ((face === 'front' || face === 'back') && y >= 2 && y <= 6 && x >= 1 && x <= 3) return y % 2 ? [200, 200, 186] : [70, 110, 60];
+      return vary(r, r() < 0.2 ? rot : pink, 0.06);
+    });
+    paintBox(img, 40, 16, 4, 12, 4, (face, x, y) => vary(r, y > 9 && x < 2 ? [214, 214, 200] : r() < 0.15 ? rot : pink, 0.06));
+    paintBox(img, 0, 16, 4, 12, 4, (face, x, y) => (y < 3 ? vary(r, [120, 84, 52], 0.06) : vary(r, r() < 0.15 ? rot : pink, 0.06)));
+  },
+  ghast(img, r) { ghastSkin(img, r, false); },
+  ghast_fire(img, r) { ghastSkin(img, r, true); },
+  wolf(img, r) { wolfSkin(img, r, 'wild'); },
+  wolf_tame(img, r) { wolfSkin(img, r, 'tame'); },
+  wolf_angry(img, r) { wolfSkin(img, r, 'angry'); },
+  slime(img, r) {
+    paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => (x === 0 || y === 0 || x === 7 || y === 7 ? [96, 180, 80, 190] : vary(r, [120, 200, 100], 0.05).concat(150)));
+    paintBox(img, 0, 16, 6, 6, 6, () => vary(r, [80, 160, 66], 0.08));
+    paintBox(img, 32, 0, 2, 2, 1, () => [20, 40, 20]);
+    paintBox(img, 32, 4, 2, 2, 1, () => [20, 40, 20]);
+    paintBox(img, 32, 8, 1, 1, 1, () => [30, 60, 30]);
+  },
+  squid(img, r) {
+    const ink = [34, 52, 80];
+    paintBox(img, 0, 0, 12, 16, 12, (face, x, y) => {
+      if (face === 'front' && y >= 9 && y <= 10 && (x === 2 || x === 9)) return [230, 230, 230];
+      if (face === 'front' && y >= 9 && y <= 10 && (x === 3 || x === 8)) return [20, 20, 30];
+      if (face === 'bottom') return vary(r, [90, 110, 140], 0.06);
+      return vary(r, (x + y) % 7 === 0 ? [50, 72, 104] : ink, 0.08);
+    });
+    paintBox(img, 48, 0, 2, 18, 2, (face, x, y) => vary(r, y > 12 ? [80, 100, 130] : ink, 0.08));
+  },
   crystal(img, r) {
     paintBox(img, 0, 0, 8, 8, 8, (face, x, y) => (x === 0 || y === 0 || x === 7 || y === 7 ? [240, 200, 255, 230] : [220, 120, 240, 120]));
     paintBox(img, 32, 0, 8, 8, 8, () => vary(r, [255, 170, 240], 0.15));
@@ -205,6 +248,48 @@ const SKINS = {
     paintBox(img, 0, 16, 4, 12, 4, (face, x, y) => (y > 10 ? vary(r, [80, 80, 86], 0.05) : vary(r, [50, 60, 160], 0.05)));
   },
 };
+
+function ghastSkin(img, r, firing) {
+  const white = [240, 240, 240];
+  paintBox(img, 0, 0, 16, 16, 16, (face, x, y) => {
+    if (face === 'front') {
+      // Closed, crying eyes; wide open and red-rimmed when it fires.
+      const eye = (x >= 3 && x <= 5) || (x >= 10 && x <= 12);
+      if (firing) {
+        if (eye && y >= 5 && y <= 7) return y === 6 && (x === 4 || x === 11) ? [140, 20, 20] : [30, 30, 30];
+        if (y >= 10 && y <= 13 && x >= 5 && x <= 10) return [40, 20, 20];
+      } else {
+        if (eye && y === 6) return [70, 70, 70];
+        if ((x === 4 || x === 11) && y >= 7 && y <= 9) return [170, 190, 200];
+        if (y === 11 && x >= 6 && x <= 9) return [70, 70, 70];
+      }
+    }
+    return vary(r, white, 0.03);
+  });
+  paintBox(img, 0, 32, 2, 9, 2, () => vary(r, white, 0.04));
+}
+
+function wolfSkin(img, r, mood) {
+  const fur = [214, 210, 204];
+  const back = [170, 162, 152];
+  paintBox(img, 0, 0, 6, 6, 4, (face, x, y) => {
+    if (face === 'front') {
+      if (y === 2 && (x === 1 || x === 4)) return mood === 'angry' ? [200, 30, 30] : [30, 30, 30];
+      if (mood === 'angry' && y === 1 && (x === 1 || x === 4)) return [120, 120, 120];
+    }
+    return vary(r, face === 'top' ? back : fur, 0.05);
+  });
+  paintBox(img, 16, 14, 2, 2, 1, () => vary(r, back, 0.05));
+  paintBox(img, 0, 10, 3, 3, 4, (face, x, y) => (face === 'front' && y === 0 && x === 1 ? [30, 30, 30] : vary(r, fur, 0.05)));
+  paintBox(img, 18, 14, 6, 9, 6, (face, x, y) => vary(r, face === 'top' || (face !== 'bottom' && y < 2) ? back : fur, 0.06));
+  paintBox(img, 21, 0, 8, 6, 7, (face, x, y) => {
+    // The tamed wolf wears a red collar where the mane meets the head.
+    if (mood === 'tame' && y >= 4 && face !== 'top' && face !== 'bottom') return [190, 30, 30];
+    return vary(r, face === 'top' ? back : fur, 0.06);
+  });
+  paintBox(img, 9, 18, 2, 8, 2, (face, x, y) => vary(r, y > 5 ? [250, 250, 248] : fur, 0.05));
+  paintBox(img, 0, 18, 2, 8, 2, () => vary(r, fur, 0.05));
+}
 
 export const SKIN_NAMES = Object.keys(SKINS);
 

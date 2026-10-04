@@ -212,6 +212,45 @@ export const MODEL_DEFS = {
       out.backLeft = { rot: [legs + 0.2, 0, 0] };
     },
   },
+  zombie_pigman: { skin: 'zombie_pigman', parts: humanoid({}), anim: humanoidAnim({ armsForward: false }) },
+  ghast: ghastModel('ghast'),
+  ghast_fire: ghastModel('ghast_fire'),
+  wolf: wolfModel('wolf'),
+  wolf_tame: wolfModel('wolf_tame'),
+  wolf_angry: wolfModel('wolf_angry'),
+  slime: {
+    skin: 'slime',
+    parts: [
+      { name: 'inner', pivot: [0, 0, 0], cubes: [cube([-3, 1, -3], [6, 6, 6], [0, 16])] },
+      { name: 'eyes', pivot: [0, 0, 0], cubes: [cube([-3.3, 4, -3.5], [2, 2, 1], [32, 0]), cube([1.3, 4, -3.5], [2, 2, 1], [32, 4]), cube([0, 2, -3.5], [1, 1, 1], [32, 8])] },
+      { name: 'outer', pivot: [0, 0, 0], cubes: [cube([-4, 0, -4], [8, 8, 8], [0, 0])] },
+    ],
+    anim: (e, t, out) => {
+      // Squash on landing and stretch while airborne.
+      const squish = e.squish ?? 0;
+      out.outer = { scale: [1 + squish * 0.25, 1 - squish * 0.3, 1 + squish * 0.25] };
+      out.inner = { scale: [1 + squish * 0.2, 1 - squish * 0.25, 1 + squish * 0.2] };
+      out.eyes = { scale: [1 + squish * 0.2, 1 - squish * 0.25, 1 + squish * 0.2] };
+    },
+  },
+  squid: {
+    skin: 'squid',
+    parts: [
+      { name: 'body', pivot: [0, 2, 0], cubes: [cube([-6, 0, -6], [12, 16, 12], [0, 0])] },
+      ...Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        return { name: `tentacle${i}`, pivot: [Math.cos(a) * 5, 2.5, Math.sin(a) * 5], cubes: [cube([-1, -18, -1], [2, 18, 2], [48, 0])] };
+      }),
+    ],
+    anim: (e, t, out) => {
+      const pulse = Math.sin(t * 0.2) * 0.5 + 0.5;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const spread = 0.15 + pulse * 0.45;
+        out[`tentacle${i}`] = { rot: [Math.sin(a) * spread, 0, -Math.cos(a) * spread] };
+      }
+    },
+  },
   crystal: {
     skin: 'crystal',
     parts: [
@@ -230,6 +269,53 @@ export const MODEL_DEFS = {
     anim: () => {},
   },
 };
+
+function ghastModel(skin) {
+  return {
+    skin,
+    parts: [
+      { name: 'body', pivot: [0, 0, 0], cubes: [cube([-8, 0, -8], [16, 16, 16], [0, 0])] },
+      ...Array.from({ length: 9 }, (_, i) => {
+        const x = ((i % 3) - 1) * 5 + (i % 2 ? 0.5 : -0.5);
+        const z = (Math.floor(i / 3) - 1) * 5;
+        return { name: `tentacle${i}`, pivot: [x, 0.5, z], cubes: [cube([-1, -(9 + (i * 7) % 5), -1], [2, 9 + ((i * 7) % 5), 2], [0, 32], { tex: [2, 9, 2] })] };
+      }),
+    ],
+    anim: (e, t, out) => {
+      for (let i = 0; i < 9; i++) out[`tentacle${i}`] = { rot: [Math.sin(t * 0.15 + i) * 0.25 + 0.15, 0, Math.cos(t * 0.11 + i * 2) * 0.12] };
+      out.body = { rot: [0, e.headYaw, 0] };
+    },
+  };
+}
+
+function wolfModel(skin) {
+  return {
+    skin,
+    parts: [
+      { name: 'body', pivot: [0, 10, 2], rot: [HALF_PI, 0, 0], cubes: [cube([-3, -2, -3], [6, 9, 6], [18, 14])] },
+      { name: 'mane', pivot: [-1 + 1, 10, -1], rot: [HALF_PI, 0, 0], cubes: [cube([-4, -3, -3], [8, 6, 7], [21, 0])] },
+      { name: 'head', pivot: [0, 10.5, -7], cubes: [
+        cube([-3, -3, -2], [6, 6, 4], [0, 0]),
+        cube([-3, 3, 0], [2, 2, 1], [16, 14]), cube([1, 3, 0], [2, 2, 1], [16, 14]),
+        cube([-1.5, -3, -5], [3, 3, 4], [0, 10]),
+      ] },
+      { name: 'tail', pivot: [0, 12, 8], cubes: [cube([-1, -8, -1], [2, 8, 2], [9, 18])] },
+      ...quadruped({ legs: [[1.5, 8, -4], [-1.5, 8, -4], [1.5, 8, 7], [-1.5, 8, 7]], legSize: [2, 8, 2], legUV: [0, 18] }),
+    ],
+    anim: (e, t, out) => {
+      quadAnim(e, t, out);
+      out.tail = { rot: [0.6 + (e.tamed ? (20 - Math.max(0, e.health)) * -0.03 + 0.4 : 0), Math.sin(t * 0.3) * 0.2 * (e.tamed ? 1 : 0.3), 0] };
+      if (e.sitting) {
+        out.body = { rot: [HALF_PI - 0.6, 0, 0], pos: [0, -2, 0] };
+        out.mane = { rot: [HALF_PI - 0.4, 0, 0], pos: [0, -1, 0] };
+        out.leg2 = { rot: [-HALF_PI, 0, 0], pos: [0, -5, -2] };
+        out.leg3 = { rot: [-HALF_PI, 0, 0], pos: [0, -5, -2] };
+        out.tail = { rot: [1.4, 0, 0], pos: [0, -7, -3] };
+        out.head.pos = [0, 0, 0];
+      }
+    },
+  };
+}
 
 function quadAnim(e, t, out) {
   const s = walk(e);

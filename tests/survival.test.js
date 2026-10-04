@@ -6,7 +6,8 @@ import { RECIPES, TAGS, SMELTING, matchRecipe } from '../src/recipes.js';
 import { Inventory, PlayerInventory, clickSlot, quickMove, takeCraft, newFurnace, tickFurnace, SMELT_TICKS } from '../src/inventory.js';
 import { breakSeconds, canHarvest, dropsFor, blockXp } from '../src/drops.js';
 import { runCommand, complete } from '../src/commands.js';
-import { MOBS, createMob, findPath } from '../src/mobs.js';
+import { MOBS, createMob, createSlime, findPath } from '../src/mobs.js';
+import { serializeEntity, deserializeEntity } from '../src/entities.js';
 import { tryLightPortal, checkEndPortal } from '../src/portals.js';
 import { ADVANCEMENTS } from '../src/advancements.js';
 import { Weather } from '../src/weather.js';
@@ -474,4 +475,25 @@ test('enchanted stacks keep their enchantments and never stack', () => {
   c.ench.sharpness = 1;
   assert.equal(s.ench.sharpness, 3, 'a copy, not a reference');
   assert.equal(canStack({ item: 'bow', count: 1, ench: { power: 1 } }, { item: 'bow', count: 1 }), false);
+});
+
+test('slimes come in three sizes and tamed wolves are remembered', () => {
+  for (const size of [1, 2, 4]) {
+    const slime = createSlime(size, 0, 20, 0);
+    assert.equal(slime.health, size * size);
+    const b = slime.box();
+    assert.ok(Math.abs(b[4] - b[1] - 0.51 * size) < 1e-9);
+    // Hostile mobs aren't saved unless they're persistent.
+    assert.equal(serializeEntity(slime), null);
+    slime.persistent = true;
+    assert.equal(deserializeEntity(JSON.parse(JSON.stringify(serializeEntity(slime)))).size, size);
+  }
+  const wolf = createMob('wolf', 3, 20, 4);
+  wolf.tamed = true;
+  wolf.sitting = true;
+  const back = deserializeEntity(JSON.parse(JSON.stringify(serializeEntity(wolf))));
+  assert.equal(back.tamed, true);
+  assert.equal(back.sitting, true);
+  // Squid drift off when you leave, like hostile mobs.
+  assert.equal(serializeEntity(createMob('squid', 0, 40, 0)), null);
 });

@@ -16,6 +16,11 @@ export const MOBS = {
   spider: { name: 'Spider', model: 'spider', hw: 0.7, h: 0.9, health: 16, speed: 3.0, hostile: true, damage: [2, 2, 3], climbs: true, arthropod: true, xp: 5, drops: [['string', 0, 2]], sound: 'spider' },
   enderman: { name: 'Enderman', model: 'enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.0, hostile: true, neutral: true, damage: [4, 7, 10], xp: 5, drops: [['ender_pearl', 0, 1, null, 0.7]], sound: 'enderman' },
   blaze: { name: 'Blaze', model: 'blaze', hw: 0.3, h: 1.8, health: 20, speed: 2.4, hostile: true, flying: true, fireImmune: true, xp: 10, drops: [['blaze_rod', 0, 1, null, 0.8]], sound: 'blaze' },
+  zombie_pigman: { name: 'Zombie Pigman', model: 'zombie_pigman', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: true, neutral: true, damage: [5, 9, 13], undead: true, fireImmune: true, xp: 5, drops: [['rotten_flesh', 0, 1], ['gold_nugget', 0, 1]], sound: 'pigman' },
+  ghast: { name: 'Ghast', model: 'ghast', hw: 2, h: 4, health: 10, speed: 1.4, hostile: true, flying: true, fireImmune: true, xp: 5, scale: 4, drops: [['ghast_tear', 0, 1], ['gunpowder', 0, 2]], sound: 'ghast' },
+  wolf: { name: 'Wolf', model: 'wolf', hw: 0.3, h: 0.85, health: 8, speed: 3.0, neutral: true, damage: [3, 4, 6], drops: [], sound: 'wolf', meats: ['beef', 'steak', 'porkchop', 'cooked_porkchop', 'chicken', 'cooked_chicken', 'mutton', 'cooked_mutton', 'rotten_flesh'] },
+  slime: { name: 'Slime', model: 'slime', hw: 1.02, h: 2.04, health: 16, speed: 2.6, hostile: true, drops: [], sound: 'slime' },
+  squid: { name: 'Squid', model: 'squid', hw: 0.4, h: 0.8, health: 10, speed: 1.8, aquatic: true, despawn: true, drops: [['ink_sac', 1, 3]], sound: 'squid' },
   dragon: { name: 'Ender Dragon', model: 'dragon', hw: 4, h: 4, health: 200, speed: 12, hostile: true, boss: true, fireImmune: true, drops: [], sound: 'dragon' },
 };
 
@@ -67,6 +72,16 @@ export function createMob(type, x, y, z) {
       return [this.pos[0], this.pos[1] + this.h / 2, this.pos[2]];
     },
   };
+}
+
+// Slimes come in three sizes; each size has its own box and health (size squared).
+export function createSlime(size, x, y, z) {
+  const e = createMob('slime', x, y, z);
+  e.size = size;
+  e.hw = 0.255 * size;
+  e.h = 0.51 * size;
+  e.health = size * size;
+  return e;
 }
 
 const difficultyIndex = (d) => ({ easy: 0, normal: 1, hard: 2 })[d] ?? 1;
@@ -213,7 +228,19 @@ export function hurtMob(e, amount, game, source = {}) {
     e.provoked = true;
     if (e.type === 'enderman') e.angry = true;
     e.lastHitByPlayer = game.tickCount;
+    // Hit one zombie pigman and every pigman nearby comes for you; wild wolves defend their pack.
+    if (e.type === 'zombie_pigman' || (e.type === 'wolf' && !e.tamed)) {
+      for (const o of game.entities.mobs((m) => m.type === e.type && !m.tamed && Math.hypot(m.pos[0] - e.pos[0], m.pos[2] - e.pos[2]) < (e.type === 'wolf' ? 16 : 32))) {
+        o.angry = true;
+        o.angerTime = 400 + Math.floor(Math.random() * 400);
+      }
+    }
+    if (e.tamed) e.sitting = false;
+  } else if (source.byPlayer) {
+    // Kills by your tamed wolves count as yours.
+    e.lastHitByPlayer = game.tickCount;
   }
+  if (e.type === 'squid') game.particles.burst([e.pos[0], e.pos[1] + 0.5, e.pos[2]], 'ink', 12, 0.5);
   if (e.type === 'enderman' && Math.random() < 0.3) teleportRandomly(e, game);
   game.sound(`${def.sound}_hurt`, e.pos);
   if (e.health <= 0) {
@@ -229,6 +256,22 @@ export function hurtMob(e, amount, game, source = {}) {
 function dropLoot(e, game) {
   if (e.growUp < 0) return;
   const byPlayer = e.lastHitByPlayer !== undefined && game.tickCount - e.lastHitByPlayer < 100;
+  if (e.type === 'slime') {
+    // Big slimes break into two to four smaller ones; the smallest leave slimeballs.
+    if (e.size > 1) {
+      const n = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) {
+        const child = createSlime(e.size / 2, e.pos[0] + (Math.random() - 0.5) * e.hw, e.pos[1] + 0.3, e.pos[2] + (Math.random() - 0.5) * e.hw);
+        child.vel = [(Math.random() - 0.5) * 3, 3, (Math.random() - 0.5) * 3];
+        game.entities.add(child);
+      }
+    } else {
+      const balls = Math.floor(Math.random() * 3) + Math.floor(Math.random() * ((e.looting ?? 0) + 1));
+      if (balls) game.dropStacks([e.pos[0], e.pos[1] + 0.3, e.pos[2]], [{ item: 'slimeball', count: balls }]);
+    }
+    if (byPlayer) game.spawnXp?.([e.pos[0], e.pos[1] + 0.3, e.pos[2]], e.size);
+    return;
+  }
   const stacks = [];
   // Looting adds up to its level to each drop, as in Minecraft.
   const looting = byPlayer ? e.looting ?? 0 : 0;
@@ -302,17 +345,23 @@ export function tickMob(e, game) {
   if (e.removed || e.deathTime > 0) return;
 
   const p = game.player;
-  const wish = { x: 0, z: 0, speed: def.speed, jump: false };
+  const wish = { x: 0, z: 0, y: 0, speed: def.speed, jump: false };
+  if (e.angerTime > 0 && --e.angerTime === 0) e.angry = false;
   const target = chooseTarget(e, game);
   e.target = target;
-  if (def.passive) passiveAI(e, game, wish);
+  e.lookTarget = null;
+  if (e.type === 'wolf') wolfAI(e, game, wish, target);
+  else if (e.type === 'squid') squidAI(e, game, wish);
+  else if (e.type === 'ghast') ghastAI(e, game, wish, target);
+  else if (e.type === 'slime') slimeAI(e, game, wish, target);
+  else if (def.passive) passiveAI(e, game, wish);
   else if (e.type === 'skeleton') skeletonAI(e, game, wish, target);
   else if (e.type === 'creeper') creeperAI(e, game, wish, target);
   else if (e.type === 'blaze') blazeAI(e, game, wish, target);
   else meleeAI(e, game, wish, target);
 
-  // Look at the player when nearby and idle.
-  const lookAt = target ? [p.pos[0], p.pos[1] + 1.6, p.pos[2]] : null;
+  // Look at the player (or a wolf's prey) when nearby and idle.
+  const lookAt = e.lookTarget ? [e.lookTarget.pos[0], e.lookTarget.pos[1] + e.lookTarget.h * 0.8, e.lookTarget.pos[2]] : target ? [p.pos[0], p.pos[1] + 1.6, p.pos[2]] : null;
   if (lookAt) {
     const dx = lookAt[0] - e.pos[0];
     const dz = lookAt[2] - e.pos[2];
@@ -326,8 +375,12 @@ export function tickMob(e, game) {
   }
 
   move(e, game, wish);
-  pushApart(e, game);
-  if (def.hostile && !e.persistent) despawnCheck(e, game);
+  if (e.type === 'ghast' && target) {
+    // A ghast turns its whole body to face you.
+    e.bodyYaw = e.yaw = Math.atan2(-(target.pos[0] - e.pos[0]), -(target.pos[2] - e.pos[2]));
+  }
+  if (!def.flying) pushApart(e, game);
+  if ((def.hostile || def.despawn) && !e.persistent) despawnCheck(e, game);
 }
 
 function wrap(a) {
@@ -412,10 +465,15 @@ function chooseTarget(e, game) {
     if (dist > 64) { e.angry = false; return null; }
     return p;
   }
+  if (e.type === 'zombie_pigman' || e.type === 'wolf') {
+    if (!e.angry || e.tamed || dist > 40) return null;
+    return p;
+  }
+  if (e.type === 'squid') return null;
   if (e.type === 'spider' && !e.provoked && game.lightAt(Math.floor(e.pos[0]), Math.floor(e.pos[1] + 0.5), Math.floor(e.pos[2])) > 11) {
     return null;
   }
-  const range = e.type === 'zombie' ? 35 : e.type === 'blaze' ? 48 : 16;
+  const range = e.type === 'zombie' ? 35 : e.type === 'blaze' ? 48 : e.type === 'ghast' ? 64 : 16;
   if (dist > range) return null;
   const eye = [e.pos[0], e.pos[1] + e.h * 0.85, e.pos[2]];
   if (canSee(game.world, eye, p.eye, range)) e.lastSeen = game.tickCount;
@@ -484,21 +542,14 @@ function passiveAI(e, game, wish) {
     if (distToPlayer > 2) walkTo(e, game, wish, p.pos, 1.2);
     return;
   }
-  // Find a partner when in love.
-  if (e.inLove > 0) {
-    const mate = game.entities.mobs((o) => o !== e && o.type === e.type && o.inLove > 0 && Math.hypot(o.pos[0] - e.pos[0], o.pos[2] - e.pos[2]) < 8)[0];
-    if (mate) {
-      const d = steerTo(e, wish, mate.pos[0], mate.pos[2]);
-      if (d < 1.4 && e.id < mate.id) {
-        e.inLove = mate.inLove = 0;
-        e.breedCooldown = mate.breedCooldown = 6000;
-        const baby = createMob(e.type, e.pos[0], e.pos[1], e.pos[2]);
-        baby.growUp = -6000;
-        game.entities.add(baby);
-        game.spawnXp?.([e.pos[0], e.pos[1] + 0.5, e.pos[2]], 1 + Math.floor(Math.random() * 7));
-        game.particles.burst([e.pos[0], e.pos[1] + 1, e.pos[2]], 'heart', 6, 0.6);
-      }
-      return;
+  if (seekMate(e, game, wish)) return;
+  // Every five to ten minutes a hen lays an egg.
+  if (e.type === 'chicken' && !(e.growUp < 0)) {
+    e.eggTime = (e.eggTime ?? 6000 + Math.floor(Math.random() * 6000)) - 1;
+    if (e.eggTime <= 0) {
+      e.eggTime = 6000 + Math.floor(Math.random() * 6000);
+      game.dropStacks([e.pos[0], e.pos[1] + 0.3, e.pos[2]], [{ item: 'egg', count: 1 }]);
+      game.sound('pop', e.pos, 0.6);
     }
   }
   // Sheep regrow their wool by grazing.
@@ -525,6 +576,192 @@ function passiveAI(e, game, wish) {
     }
   }
   if (Math.random() < 0.002) game.sound(`${def.sound}_say`, e.pos);
+}
+
+// Two animals in love find each other and make a baby. Returns true while busy courting.
+function seekMate(e, game, wish) {
+  if (!(e.inLove > 0)) return false;
+  const mate = game.entities.mobs((o) => o !== e && o.type === e.type && o.inLove > 0 && Math.hypot(o.pos[0] - e.pos[0], o.pos[2] - e.pos[2]) < 8)[0];
+  if (!mate) return false;
+  const d = steerTo(e, wish, mate.pos[0], mate.pos[2]);
+  if (d < 1.4 && e.id < mate.id) {
+    e.inLove = mate.inLove = 0;
+    e.breedCooldown = mate.breedCooldown = 6000;
+    const baby = createMob(e.type, e.pos[0], e.pos[1], e.pos[2]);
+    baby.growUp = -6000;
+    if (e.tamed) {
+      baby.tamed = true;
+      baby.persistent = true;
+      baby.health = 20;
+    }
+    game.entities.add(baby);
+    game.spawnXp?.([e.pos[0], e.pos[1] + 0.5, e.pos[2]], 1 + Math.floor(Math.random() * 7));
+    game.particles.burst([e.pos[0], e.pos[1] + 1, e.pos[2]], 'heart', 6, 0.6);
+  }
+  return true;
+}
+
+// Wild wolves roam in packs and turn on you if you hit one. Tamed wolves
+// follow you, sit when told, teleport to keep up and fight what you fight.
+function wolfAI(e, game, wish, target) {
+  const def = e.def;
+  const p = game.player;
+  if (!e.tamed) {
+    if (target) return meleeAI(e, game, wish, target);
+    return wanderHostile(e, game, wish);
+  }
+  if (e.sitting) {
+    wish.speed = 0;
+    e.attackTarget = null;
+    e.lookTarget = Math.hypot(p.pos[0] - e.pos[0], p.pos[2] - e.pos[2]) < 8 ? { pos: p.pos, h: 2 } : null;
+    return;
+  }
+  if (seekMate(e, game, wish)) return;
+  let prey = e.attackTarget;
+  if (prey && (prey.removed || prey.deathTime > 0 || Math.hypot(prey.pos[0] - e.pos[0], prey.pos[2] - e.pos[2]) > 24)) prey = e.attackTarget = null;
+  if (prey) {
+    e.lookTarget = prey;
+    const d = Math.hypot(prey.pos[0] - e.pos[0], prey.pos[2] - e.pos[2]);
+    wish.speed = def.speed * 1.25;
+    if (d > 1) walkTo(e, game, wish, prey.pos);
+    if (d < e.hw + prey.hw + 0.9 && Math.abs(prey.pos[1] - e.pos[1]) < 1.6 && e.attackCooldown === 0) {
+      e.attackCooldown = 20;
+      e.attackAnim = 1;
+      hurtMob(prey, 4, game, { kind: 'mob', byPlayer: true, dir: [prey.pos[0] - e.pos[0], 0, prey.pos[2] - e.pos[2]] });
+    }
+    return;
+  }
+  const d = Math.hypot(p.pos[0] - e.pos[0], p.pos[2] - e.pos[2]);
+  if (d > 12 && !p.dead) {
+    // Too far behind: appear next to the player, as tamed wolves do.
+    for (let k = 0; k < 10; k++) {
+      const x = Math.floor(p.pos[0]) + Math.floor(Math.random() * 5) - 2;
+      const z = Math.floor(p.pos[2]) + Math.floor(Math.random() * 5) - 2;
+      const y = Math.floor(p.pos[1]);
+      if (standable(game.world, x, y, z, 1) && Math.hypot(x - p.pos[0], z - p.pos[2]) > 1.2) {
+        e.pos = [x + 0.5, y, z + 0.5];
+        e.prev = [...e.pos];
+        e.vel = [0, 0, 0];
+        e.path = null;
+        break;
+      }
+    }
+  } else if (d > 3.5) {
+    wish.speed = def.speed * (d > 7 ? 1.3 : 1);
+    walkTo(e, game, wish, p.pos);
+  } else {
+    wish.speed = 0;
+    e.lookTarget = { pos: p.pos, h: 2 };
+  }
+  if (Math.random() < 0.003) game.sound('wolf_say', e.pos);
+}
+
+// Squid drift through the water in slow pulses.
+function squidAI(e, game, wish) {
+  if (!e.inWater) {
+    wish.speed = 0;
+    return;
+  }
+  e.swimTime = (e.swimTime ?? 0) - 1;
+  if (e.swimTime <= 0 || e.collidedH) {
+    e.swimTime = 40 + Math.floor(Math.random() * 60);
+    const a = Math.random() * Math.PI * 2;
+    e.swim = [Math.cos(a), (Math.random() - 0.5) * 0.6, Math.sin(a)];
+  }
+  // Keep under the surface.
+  const above = game.world.getBlock(Math.floor(e.pos[0]), Math.floor(e.pos[1] + e.h + 0.3), Math.floor(e.pos[2]));
+  if (!FLUID[above] && e.swim[1] > 0) e.swim[1] = -0.3;
+  wish.x = e.swim[0];
+  wish.z = e.swim[2];
+  wish.y = e.swim[1];
+  wish.speed = e.def.speed * (0.6 + 0.4 * Math.sin(e.age * 0.2));
+}
+
+// Ghasts drift around the Nether's open spaces and lob exploding fireballs
+// at you from far away. Their face opens a second before they fire.
+function ghastAI(e, game, wish, target) {
+  wish.speed = e.def.speed;
+  if (!e.drift || e.collidedH || Math.hypot(e.drift[0] - e.pos[0], e.drift[2] - e.pos[2]) < 2 || e.age % 240 === 0) {
+    const x = e.pos[0] + (Math.random() - 0.5) * 32;
+    const z = e.pos[2] + (Math.random() - 0.5) * 32;
+    let y = Math.max(12, Math.min(110, e.pos[1] + (Math.random() - 0.5) * 16));
+    // Hover well clear of whatever lies below.
+    for (let k = 0; k < 40; k++) {
+      const id = game.world.getBlock(Math.floor(x), Math.floor(y) - k, Math.floor(z));
+      if (SOLID[id] || FLUID[id]) {
+        y = Math.max(y, Math.floor(y) - k + 6);
+        break;
+      }
+    }
+    e.drift = [x, y, z];
+  }
+  steerTo(e, wish, e.drift[0], e.drift[2]);
+  e.flyY = e.drift[1];
+  e.chargeTime = e.chargeTime ?? 0;
+  if (target && e.lastSeen === game.tickCount) {
+    e.chargeTime++;
+    if (e.chargeTime === 10) game.sound('ghast_warn', e.pos, 1.5);
+    if (e.chargeTime >= 20) {
+      e.chargeTime = -40;
+      const yaw = Math.atan2(-(target.pos[0] - e.pos[0]), -(target.pos[2] - e.pos[2]));
+      const from = [e.pos[0] - Math.sin(yaw) * 2.2, e.pos[1] + 2, e.pos[2] - Math.cos(yaw) * 2.2];
+      const dir = [target.pos[0] - from[0], target.pos[1] + 1 - from[1], target.pos[2] - from[2]];
+      const len = Math.hypot(...dir) || 1;
+      const ball = game.makeProjectile('ghast_fireball', from, dir.map((v) => (v / len) * 14), e.id);
+      ball.hw = 0.5;
+      ball.h = 1;
+      game.entities.add(ball);
+      game.sound('ghast_shoot', e.pos, 1.5);
+    }
+  } else if (e.chargeTime > 0) {
+    e.chargeTime--;
+  } else if (e.chargeTime < 0) {
+    e.chargeTime++;
+  }
+  if (Math.random() < 0.006) game.sound('ghast_say', e.pos, 1.6);
+}
+
+// Slimes hop: a crouch, a leap toward you, a squelch on landing.
+function slimeAI(e, game, wish, target) {
+  e.squish = (e.squish ?? 0) * 0.7;
+  if (e.onGround) {
+    if (!e.wasOnGround) {
+      e.squish = 1;
+      game.sound('slime_land', e.pos, 0.4 + e.size * 0.1);
+    }
+    wish.speed = 0;
+    e.jumpDelay = (e.jumpDelay ?? 20) - 1;
+    if (e.jumpDelay <= 0) {
+      e.jumpDelay = Math.floor((10 + Math.random() * 20) / (target ? 3 : 1));
+      let dx;
+      let dz;
+      if (target) {
+        dx = target.pos[0] - e.pos[0];
+        dz = target.pos[2] - e.pos[2];
+      } else {
+        const a = Math.random() * Math.PI * 2;
+        dx = Math.cos(a);
+        dz = Math.sin(a);
+      }
+      const len = Math.hypot(dx, dz) || 1;
+      e.hop = [dx / len, dz / len];
+      e.vel[1] = 6 + e.size * 0.4;
+      e.bodyYaw = e.yaw = Math.atan2(-dx, -dz);
+    }
+  } else if (e.hop) {
+    wish.x = e.hop[0];
+    wish.z = e.hop[1];
+    wish.speed = e.def.speed * (0.8 + e.size * 0.15);
+  }
+  e.wasOnGround = e.onGround;
+  // Bigger slimes hurt on contact; the smallest are harmless.
+  if (target && e.size > 1 && e.attackCooldown === 0) {
+    const dist = Math.hypot(target.pos[0] - e.pos[0], target.pos[2] - e.pos[2]);
+    if (dist < e.hw + 0.6 && target.pos[1] < e.pos[1] + e.h && target.pos[1] + 1.8 > e.pos[1]) {
+      e.attackCooldown = 10;
+      game.damagePlayer(e.size === 4 ? [3, 4, 6][difficultyIndex(game.difficulty)] : [1, 2, 3][difficultyIndex(game.difficulty)], 'mob', e);
+    }
+  }
 }
 
 function meleeAI(e, game, wish, target) {
@@ -666,6 +903,17 @@ function move(e, game, wish) {
   const targetX = wish.x * speed;
   const targetZ = wish.z * speed;
   const accel = e.onGround || def.flying ? 24 : 6;
+  if (def.aquatic && e.inWater) {
+    for (const [a, w] of [[0, wish.x], [1, wish.y ?? 0], [2, wish.z]]) e.vel[a] += (w * wish.speed - e.vel[a]) * 0.08;
+    const bx0 = e.pos[0];
+    const bz0 = e.pos[2];
+    moveBody(world, e, e.vel[0] * DT, e.vel[1] * DT, e.vel[2] * DT);
+    const moved = Math.hypot(e.pos[0] - bx0, e.pos[2] - bz0);
+    if (moved > 0.005) e.bodyYaw += wrap(Math.atan2(-(e.pos[0] - bx0), -(e.pos[2] - bz0)) - e.bodyYaw) * 0.1;
+    e.yaw = e.bodyYaw;
+    e.fallDistance = 0;
+    return;
+  }
   e.vel[0] += Math.max(-accel * DT, Math.min(accel * DT, targetX - e.vel[0]));
   e.vel[2] += Math.max(-accel * DT, Math.min(accel * DT, targetZ - e.vel[2]));
   if (def.flying) {
