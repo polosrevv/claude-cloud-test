@@ -1,19 +1,42 @@
-// The main thread's copy of the world: loaded chunk data, player edits, and
-// the bookkeeping that tells the streamer which chunks need new meshes.
-import { CHUNK, HEIGHT, blockIndex, createTerrain } from './terrain.js';
-import { B, FALLS, PLANT } from './blocks.js';
+// The main thread's copy of one dimension: loaded chunk data and light, player
+// edits, block entities (chests, furnaces, spawners), parked entities and the
+// bookkeeping that tells the streamer which chunks need new meshes.
+import { CHUNK, HEIGHT, blockIndex } from './constants.js';
+import { createTerrain, DIMENSIONS } from './terrain.js';
+import { B, PLANT, FLUID } from './blocks.js';
 import { PAD, RW, regionIndex, REGION_SIZE } from './mesher.js';
 
 export const chunkKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
+export const posKey = (x, y, z) => `${x},${y},${z}`;
 
 export class World {
-  constructor(seed) {
+  constructor(seed, dimension = 'overworld') {
     this.seed = seed;
-    this.terrain = createTerrain(seed);
+    this.dimension = dimension;
+    this.info = DIMENSIONS[dimension];
+    this.terrain = createTerrain(seed, dimension);
     this.chunks = new Map();
     // Player edits survive chunk unloading: chunkKey -> Map(blockIndex -> id).
     this.edits = new Map();
     this.editCount = 0;
+    // Chests, furnaces and spawners: "x,y,z" -> data.
+    this.blockEntities = new Map();
+    // Entities in chunks that unloaded: chunkKey -> [serialised entity].
+    this.parked = new Map();
+    // Chunks that have had their one-time population (animals, loot).
+    this.populated = new Set();
+    // Pending block ticks (flowing fluids): "x,y,z" -> tick due.
+    this.scheduled = new Map();
+    this.onChange = null;
+    this.onChunkLoad = null;
+    this.onChunkUnload = null;
+  }
+
+  makeChunk(cx, cz) {
+    return {
+      key: chunkKey(cx, cz), cx, cz, blocks: null, light: null, gpu: null,
+      version: 0, meshedVersion: -1, urgent: 0, genPending: false, meshPending: false, visible: false,
+    };
   }
 
   getChunk(cx, cz) {
@@ -37,11 +60,48 @@ export class World {
     return !!(chunk && chunk.blocks);
   }
 
+  // Light from the last mesh of the chunk, packed sky << 4 | block. Unknown
+  // places read as full sky light in dimensions with a sky.
+  getLight(x, y, z) {
+    if (y >= HEIGHT) return (this.info.skyLight << 4);
+    if (y < 0) return 0;
+    const cx = Math.floor(x / CHUNK);
+    const cz = Math.floor(z / CHUNK);
+    const chunk = this.chunks.get(chunkKey(cx, cz));
+    if (!chunk || !chunk.light) return this.info.skyLight << 4;
+    return chunk.light[blockIndex(x - cx * CHUNK, y, z - cz * CHUNK)];
+  }
+
+  skyLightAt(x, y, z) {
+    return this.getLight(x, y, z) >> 4;
+  }
+
+  blockLightAt(x, y, z) {
+    return this.getLight(x, y, z) & 15;
+  }
+
   // Store generated data and re-apply any edits the player made earlier.
   acceptChunk(chunk, blocks) {
     const edits = this.edits.get(chunk.key);
     if (edits) for (const [i, id] of edits) blocks[i] = id;
     chunk.blocks = blocks;
+    this.onChunkLoad?.(chunk);
+  }
+
+  unloadChunk(chunk) {
+    if (chunk.blocks) this.onChunkUnload?.(chunk);
+    this.chunks.delete(chunk.key);
+  }
+
+  // Generate a chunk right now on the main thread (portals need the far side immediately).
+  ensureChunk(cx, cz) {
+    let c = this.getChunk(cx, cz);
+    if (!c) {
+      c = this.makeChunk(cx, cz);
+      this.chunks.set(c.key, c);
+    }
+    if (!c.blocks) this.acceptChunk(c, this.terrain.generateChunk(cx, cz));
+    return c;
   }
 
   setBlock(x, y, z, id) {
@@ -59,6 +119,7 @@ export class World {
     if (!edits.has(i)) this.editCount++;
     edits.set(i, id);
     this.markDirty(x, z);
+    this.onChange?.(x, y, z, old, id);
     return true;
   }
 
@@ -75,53 +136,22 @@ export class World {
         const c = this.getChunk(cx, cz);
         if (!c) continue;
         c.version++;
-        // The edited chunk itself is remeshed first; neighbours follow.
         c.urgent = Math.max(c.urgent, c.key === home ? 2 : 1);
       }
     }
   }
 
-  // Break a block and apply the simple physics that follows: plants pop off,
-  // sand and gravel fall. Returns the removed id, or null.
-  breakBlock(x, y, z) {
-    const id = this.getBlock(x, y, z);
-    if (id === B.AIR || id === B.WATER) return null;
-    if (y === 0) return null; // the bottom bedrock layer keeps the void out
-    this.setBlock(x, y, z, B.AIR);
-    const above = this.getBlock(x, y + 1, z);
-    if (PLANT[above]) this.setBlock(x, y + 1, z, B.AIR);
-    else if (FALLS[above]) this.settle(x, y + 1, z);
-    return id;
-  }
-
-  placeBlock(x, y, z, id) {
-    if (!this.setBlock(x, y, z, id)) return false;
-    if (FALLS[id]) this.settle(x, y, z);
-    return true;
-  }
-
-  // Drop a column of sand/gravel starting at (x, y, z) onto the first support.
-  settle(x, y, z) {
-    while (y < HEIGHT && FALLS[this.getBlock(x, y, z)]) {
-      const id = this.getBlock(x, y, z);
-      let to = y;
-      while (to > 0) {
-        const below = this.getBlock(x, to - 1, z);
-        if (below !== B.AIR && below !== B.WATER && !PLANT[below]) break;
-        to--;
-      }
-      if (to === y) return;
-      this.setBlock(x, y, z, B.AIR);
-      this.setBlock(x, to, z, id);
-      y++;
-    }
+  schedule(x, y, z, tick) {
+    const key = posKey(x, y, z);
+    const due = this.scheduled.get(key);
+    if (due === undefined || tick < due) this.scheduled.set(key, tick);
   }
 
   // Highest block that stops a player, or -1.
   surfaceY(x, z) {
     for (let y = HEIGHT - 1; y >= 0; y--) {
       const id = this.getBlock(x, y, z);
-      if (id !== B.AIR && !PLANT[id] && id !== B.WATER) return y;
+      if (id !== B.AIR && !PLANT[id] && !FLUID[id]) return y;
     }
     return -1;
   }
@@ -166,26 +196,34 @@ export class World {
     return region;
   }
 
-  serializeEdits() {
-    const out = {};
-    for (const [key, edits] of this.edits) {
-      if (edits.size === 0) continue;
+  serialize() {
+    const edits = {};
+    for (const [key, map] of this.edits) {
+      if (map.size === 0) continue;
       const flat = [];
-      for (const [i, id] of edits) flat.push(i, id);
-      out[key] = flat;
+      for (const [i, id] of map) flat.push(i, id);
+      edits[key] = flat;
     }
-    return out;
+    return {
+      edits,
+      blockEntities: [...this.blockEntities.entries()],
+      parked: [...this.parked.entries()],
+      populated: [...this.populated],
+    };
   }
 
-  loadEdits(data) {
+  load(data) {
     this.edits.clear();
     this.editCount = 0;
-    for (const key of Object.keys(data || {})) {
-      const flat = data[key];
-      const edits = new Map();
-      for (let k = 0; k + 1 < flat.length; k += 2) edits.set(flat[k], flat[k + 1]);
-      this.edits.set(Number(key), edits);
-      this.editCount += edits.size;
+    for (const key of Object.keys(data?.edits || {})) {
+      const flat = data.edits[key];
+      const map = new Map();
+      for (let k = 0; k + 1 < flat.length; k += 2) map.set(flat[k], flat[k + 1]);
+      this.edits.set(Number(key), map);
+      this.editCount += map.size;
     }
+    this.blockEntities = new Map(data?.blockEntities || []);
+    this.parked = new Map(data?.parked || []);
+    this.populated = new Set(data?.populated || []);
   }
 }

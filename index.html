@@ -9,10 +9,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500&family=Pixelify+Sans:wght@500;700&display=swap">
 <style>
 /* Layout: the live 3D world fills the screen; menus sit in a stone slab on the
-   left so the world stays in view, and the HUD hugs the bottom edge. */
+   left so the world stays in view; game windows (inventory, furnace) float
+   centred like Minecraft's; the HUD hugs the bottom edge. */
 :root {
   --ground: #0d1013;
-  --slab: rgba(23, 21, 19, 0.84);
+  --slab: rgba(23, 21, 19, 0.86);
   --slab-edge: #57514a;
   --text: #f3ecd8;
   --muted: #b8af9b;
@@ -25,12 +26,19 @@
   --dirt: #6b4a2b;
   --dirt-lo: #38261a;
   --ember: #f2b844;
+  --danger: #c4442d;
+  --gui: #c6c6c6;
+  --gui-hi: #ffffff;
+  --gui-lo: #555555;
+  --gui-slot: #8b8b8b;
+  --gui-ink: #3f3f3f;
   --water: rgba(30, 70, 160, 0.38);
   --ink: #000;
   --font-display: "Pixelify Sans", "Courier New", monospace;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --slot: min(48px, calc((100vw - 40px) / 9));
+  --slot: min(46px, calc((100vw - 40px) / 9));
+  --islot: min(40px, calc((100vw - 56px) / 9));
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -46,25 +54,27 @@ body {
 }
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 [hidden] { display: none !important; }
+img { image-rendering: pixelated; }
 
-/* Menus */
+/* ---------- Menus ---------- */
 .screen {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: stretch;
   padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(90deg, rgba(8, 9, 11, 0.55), rgba(8, 9, 11, 0) 70%);
+  background: linear-gradient(90deg, rgba(8, 9, 11, 0.6), rgba(8, 9, 11, 0) 72%);
   overflow-y: auto;
+  z-index: 20;
 }
 .screen.centered { justify-content: center; align-items: center; background: rgba(8, 9, 11, 0.55); }
 .slab {
-  width: min(440px, 100%);
+  width: min(460px, 100%);
   margin-block: auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 26px 24px;
+  gap: 16px;
+  padding: 24px 22px;
   background: var(--slab);
   box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 2px var(--slab-edge);
   -webkit-backdrop-filter: blur(6px);
@@ -78,21 +88,22 @@ body {
   color: var(--text);
   text-shadow: 3px 3px 0 var(--dirt), 6px 6px 0 var(--dirt-lo);
 }
-h2 { margin: 0; font: 700 30px/1 var(--font-display); text-shadow: 3px 3px 0 var(--dirt-lo); text-wrap: balance; }
-.tagline { margin: 0; color: var(--muted); max-width: 34ch; }
+h2 { margin: 0; font: 700 28px/1 var(--font-display); text-shadow: 3px 3px 0 var(--dirt-lo); text-wrap: balance; }
+h3 { margin: 0; font: 700 18px/1.2 var(--font-display); }
+.tagline { margin: 0; color: var(--muted); max-width: 36ch; }
 .eyebrow { font: 600 11px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ember); }
 .status { margin: 0; color: var(--muted); font: 13px/1.45 var(--font-mono); min-height: 1.45em; }
 .status b { color: var(--text); font-weight: 600; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; }
-.actions .btn { flex: 1 1 160px; }
+.actions .btn { flex: 1 1 150px; }
 
 .btn {
-  font: 700 18px/1 var(--font-display);
+  font: 700 17px/1 var(--font-display);
   color: var(--text);
   background: var(--stone);
   border: 0;
   border-radius: 0;
-  padding: 13px 18px 14px;
+  padding: 12px 16px 13px;
   box-shadow: 0 0 0 2px var(--ink), inset 2px 2px 0 var(--stone-hi), inset -2px -3px 0 var(--stone-lo);
   text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45);
   cursor: pointer;
@@ -101,22 +112,29 @@ h2 { margin: 0; font: 700 30px/1 var(--font-display); text-shadow: 3px 3px 0 var
 .btn:hover { filter: brightness(1.12); }
 .btn:active { box-shadow: 0 0 0 2px var(--ink), inset 2px 3px 0 var(--stone-lo); transform: translateY(1px); }
 .btn.primary { background: var(--moss); box-shadow: 0 0 0 2px var(--ink), inset 2px 2px 0 var(--moss-hi), inset -2px -3px 0 var(--moss-lo); }
-.btn.small { font-size: 15px; padding: 9px 12px 10px; flex: none; }
+.btn.small { font-size: 14px; padding: 8px 11px 9px; flex: none; }
 .btn.warn { background: #9a5b2c; }
-.btn:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--ember); outline-offset: 3px; }
+.btn.danger { background: var(--danger); }
+.btn:disabled { opacity: 0.5; cursor: default; filter: none; }
+.btn:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, .slot:focus-visible { outline: 3px solid var(--ember); outline-offset: 3px; }
 
 .field { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; }
 .field label { grid-column: 1 / -1; }
 label, .label { font: 600 12px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-input[type="text"] {
+input[type="text"], select {
   min-width: 0;
   font: 500 16px/1 var(--font-mono);
   color: var(--text);
   background: rgba(0, 0, 0, 0.5);
   border: 0;
-  padding: 12px;
+  border-radius: 0;
+  padding: 11px;
   box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 2px var(--stone-lo);
 }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choices .btn { flex: 1 1 90px; font-size: 15px; }
+.choices .btn[aria-pressed="true"] { background: var(--moss); box-shadow: 0 0 0 2px var(--ink), inset 2px 2px 0 var(--moss-hi), inset -2px -3px 0 var(--moss-lo); }
+.hint { margin: 0; color: var(--muted); font-size: 13px; }
 .settings { display: grid; gap: 14px; }
 .setting { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; }
 .setting output { font: 600 13px/1 var(--font-mono); color: var(--text); font-variant-numeric: tabular-nums; }
@@ -125,12 +143,28 @@ input[type="text"] {
 .toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; letter-spacing: 0; font: 14px/1 var(--font-body); color: var(--text); }
 .toggles input { accent-color: var(--moss-hi); width: 18px; height: 18px; }
 
-details.controls { border-top: 2px solid var(--slab-edge); padding-top: 14px; }
+.worlds { display: grid; gap: 8px; max-height: 42vh; overflow-y: auto; padding: 2px; }
+.world {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 2px var(--stone-lo);
+  cursor: pointer;
+}
+.world[aria-selected="true"] { box-shadow: inset 0 0 0 2px var(--ember); background: rgba(242, 184, 68, 0.1); }
+.world b { font: 700 16px/1.2 var(--font-display); }
+.world small { grid-column: 1; color: var(--muted); font: 12px/1.3 var(--font-mono); }
+.world .btn { grid-row: 1 / 3; grid-column: 2; }
+
+details.controls { border-top: 2px solid var(--slab-edge); padding-top: 12px; }
 details.controls summary { cursor: pointer; font: 700 16px/1 var(--font-display); list-style: none; }
 details.controls summary::-webkit-details-marker { display: none; }
 details.controls summary::after { content: " +"; color: var(--ember); }
 details.controls[open] summary::after { content: " –"; }
-.keys { display: grid; grid-template-columns: max-content 1fr; gap: 8px 14px; margin: 14px 0 0; font-size: 14px; }
+.keys { display: grid; grid-template-columns: max-content 1fr; gap: 7px 14px; margin: 12px 0 0; font-size: 14px; }
 .keys dt { white-space: nowrap; }
 .keys dd { margin: 0; color: var(--muted); }
 kbd {
@@ -144,40 +178,98 @@ kbd {
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px var(--ink);
 }
 
-/* Inventory */
-.inv-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; }
-.inv-head p { margin: 6px 0 0; color: var(--muted); }
-.inv-grid {
+/* ---------- Game windows (inventory, crafting, furnace, chest) ---------- */
+#window { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: rgba(0, 0, 0, 0.5); padding: 12px; }
+.gui {
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 24px);
+  overflow: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
-  gap: 6px;
-  max-height: min(56vh, 420px);
-  overflow-y: auto;
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.35);
-  box-shadow: inset 0 0 0 2px var(--stone-lo);
+  gap: 10px;
+  padding: 12px;
+  color: var(--gui-ink);
+  background: var(--gui);
+  box-shadow: 0 0 0 2px var(--ink), inset 3px 3px 0 var(--gui-hi), inset -3px -3px 0 var(--gui-lo);
+  font: 600 14px/1.2 var(--font-display);
 }
-.inv-grid button {
-  aspect-ratio: 1;
-  max-width: 100%;
+.gui-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.gui-title { font: 700 16px/1 var(--font-display); color: var(--gui-ink); }
+.gui-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: repeat(var(--cols, 9), var(--islot)); gap: 0; }
+.slot {
+  position: relative;
+  width: var(--islot);
+  height: var(--islot);
   display: grid;
   place-items: center;
-  padding: 0;
+  background: var(--gui-slot);
+  box-shadow: inset 2px 2px 0 #373737, inset -2px -2px 0 #ffffff;
+  cursor: pointer;
+  touch-action: none;
+}
+.slot:hover { background: #a8a8a8; }
+.slot img { width: 78%; height: 78%; pointer-events: none; }
+.slot .n {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font: 700 14px/1 var(--font-display);
+  color: #fff;
+  text-shadow: 2px 2px 0 #3f3f3f;
+  pointer-events: none;
+}
+.slot .dur { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; background: #000; pointer-events: none; }
+.slot .dur i { display: block; height: 100%; }
+.slot .ghost { opacity: 0.35; }
+.slot.big { width: calc(var(--islot) * 1.3); height: calc(var(--islot) * 1.3); }
+.arrow { font: 700 26px/1 var(--font-display); color: #8b8b8b; position: relative; }
+.arrow i { position: absolute; left: 0; top: 0; overflow: hidden; color: #fff; text-shadow: 0 0 0 #fff; white-space: nowrap; }
+.flame { width: 18px; height: 18px; background: #8b8b8b; position: relative; justify-self: center; clip-path: polygon(50% 0, 80% 40%, 95% 75%, 50% 100%, 5% 75%, 20% 40%); }
+.flame i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(#ffd34a, #f26b1d); }
+.stack-col { display: grid; gap: 6px; justify-items: center; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs button {
+  font: 700 13px/1 var(--font-display);
+  padding: 7px 9px;
   border: 0;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  color: var(--gui-ink);
+  background: #a9a9a9;
+  box-shadow: inset 2px 2px 0 #fff, inset -2px -2px 0 #555;
   cursor: pointer;
 }
-.inv-grid button:hover, .inv-grid button:focus-visible { background: rgba(242, 184, 68, 0.18); box-shadow: inset 0 0 0 2px var(--ember); outline: none; }
-.inv-grid img { width: 80%; image-rendering: pixelated; pointer-events: none; }
+.tabs button[aria-selected="true"] { background: var(--gui); box-shadow: inset 2px 2px 0 #fff, inset -2px -2px 0 #555, 0 3px 0 var(--ember); }
+.creative-grid { max-height: min(46vh, 300px); overflow-y: auto; }
+.gui input[type="text"] { color: #fff; background: #000; box-shadow: inset 0 0 0 2px #a0a0a0; padding: 7px 9px; font-size: 14px; }
+.side-note { font: 500 13px/1.35 var(--font-body); color: #3a3a3a; max-width: 30ch; }
+.side-note b { font-family: var(--font-display); }
+#cursor-stack { position: fixed; z-index: 40; width: var(--islot); height: var(--islot); pointer-events: none; transform: translate(-50%, -50%); display: grid; place-items: center; }
+#cursor-stack img { width: 80%; height: 80%; }
+#cursor-stack .n { position: absolute; right: 0; bottom: -2px; font: 700 14px/1 var(--font-display); color: #fff; text-shadow: 2px 2px 0 #3f3f3f; }
+#tooltip {
+  position: fixed;
+  z-index: 41;
+  pointer-events: none;
+  padding: 5px 8px 6px;
+  font: 600 14px/1.2 var(--font-display);
+  color: #fff;
+  background: rgba(16, 0, 16, 0.94);
+  box-shadow: inset 0 0 0 2px #2a0a5e;
+  white-space: nowrap;
+}
 
-/* HUD */
-#hud { position: fixed; inset: 0; pointer-events: none; }
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); mix-blend-mode: difference; }
 #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff; }
 #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
 #crosshair::after { left: 0; top: 10px; width: 22px; height: 2px; }
-#underwater { position: absolute; inset: 0; background: var(--water); }
+.tint { position: absolute; inset: 0; }
+#underwater { background: var(--water); }
+#portal-tint { background: radial-gradient(circle, rgba(140, 60, 230, 0.15), rgba(110, 30, 200, 0.75)); }
+#fire-tint { background: linear-gradient(to top, rgba(255, 120, 20, 0.55), rgba(255, 120, 20, 0) 45%); }
+#hurt-tint { background: radial-gradient(circle, rgba(200, 0, 0, 0) 45%, rgba(200, 0, 0, 0.45)); }
+#sleep-tint { background: #000; }
 #debug {
   position: absolute;
   left: 10px;
@@ -191,18 +283,29 @@ kbd {
   white-space: pre-wrap;
   font-variant-numeric: tabular-nums;
 }
-#hotbar {
+#bottom {
   position: absolute;
   left: 50%;
-  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+#stats { width: calc(var(--slot) * 9 + 6px); display: grid; grid-template-columns: 1fr 1fr; gap: 2px 0; }
+.bar { display: flex; gap: 0; height: calc(var(--slot) * 0.36); }
+.bar img { height: 100%; aspect-ratio: 1; margin-right: 1px; }
+.bar.right { flex-direction: row-reverse; justify-self: end; }
+.bar.right img { margin: 0 0 0 1px; }
+#xp-line { font: 700 13px/1 var(--font-display); color: #b5f070; text-shadow: 2px 2px 0 #000; min-height: 0; }
+#hotbar {
   display: flex;
   padding: 3px;
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 2px rgba(255, 255, 255, 0.12);
   pointer-events: auto;
 }
-.slot {
+.hslot {
   position: relative;
   width: var(--slot);
   height: var(--slot);
@@ -214,9 +317,11 @@ kbd {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
   cursor: pointer;
 }
-.slot img { width: 76%; image-rendering: pixelated; pointer-events: none; }
-.slot .num { position: absolute; top: 2px; left: 4px; font: 600 10px/1 var(--font-mono); color: var(--muted); }
-.slot.selected { box-shadow: inset 0 0 0 3px var(--ember), 0 0 0 2px var(--ink); z-index: 1; }
+.hslot img { width: 72%; height: 72%; pointer-events: none; }
+.hslot .n { position: absolute; right: 3px; bottom: 1px; font: 700 14px/1 var(--font-display); color: #fff; text-shadow: 2px 2px 0 #3f3f3f; }
+.hslot .dur { position: absolute; left: 5px; right: 5px; bottom: 4px; height: 3px; background: #000; }
+.hslot .dur i { display: block; height: 100%; }
+.hslot.selected { box-shadow: inset 0 0 0 3px var(--ember), 0 0 0 2px var(--ink); z-index: 1; }
 #held-name, #toast {
   position: absolute;
   left: 50%;
@@ -227,64 +332,89 @@ kbd {
   text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7);
   transition: opacity 0.3s;
 }
-#held-name { bottom: calc(var(--slot) + 30px + env(safe-area-inset-bottom, 0px)); }
-#toast { top: calc(18% + env(safe-area-inset-top, 0px)); padding: 8px 14px; background: rgba(0, 0, 0, 0.55); font-family: var(--font-body); font-weight: 500; font-size: 15px; }
+#held-name { bottom: calc(var(--slot) * 1.9 + 34px + env(safe-area-inset-bottom, 0px)); }
+#toast { top: calc(16% + env(safe-area-inset-top, 0px)); padding: 8px 14px; background: rgba(0, 0, 0, 0.6); font-family: var(--font-body); font-weight: 500; font-size: 15px; }
 .fade { opacity: 0; }
-#resume-hint {
+#advancement {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, 40px);
-  padding: 10px 16px;
-  font: 700 18px/1 var(--font-display);
-  background: rgba(0, 0, 0, 0.6);
-  box-shadow: 0 0 0 2px var(--ink);
+  right: 12px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 2px 10px;
+  align-items: center;
+  width: min(300px, calc(100vw - 24px));
+  padding: 8px 12px 9px;
+  background: #212121;
+  box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #555;
+  transition: transform 0.35s, opacity 0.35s;
 }
+#advancement.out { transform: translateX(120%); opacity: 0; }
+#advancement img { grid-row: 1 / 3; width: 32px; height: 32px; }
+#advancement b { font: 700 13px/1.2 var(--font-display); color: #f2e64a; }
+#advancement span { font: 600 14px/1.2 var(--font-display); color: #fff; }
+#bossbar { position: absolute; left: 50%; top: calc(10px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: min(380px, calc(100vw - 32px)); display: grid; gap: 4px; justify-items: center; font: 700 15px/1 var(--font-display); text-shadow: 2px 2px 0 #000; }
+#bossbar .track { width: 100%; height: 8px; background: #2b0f3a; box-shadow: 0 0 0 2px #000; }
+#bossbar .track i { display: block; height: 100%; background: linear-gradient(#ff7cf0, #c13ad6); }
+#chat { position: absolute; left: 8px; bottom: calc(var(--slot) * 2.2 + 60px + env(safe-area-inset-bottom, 0px)); width: min(520px, calc(100vw - 16px)); display: grid; gap: 2px; }
+#chat p { margin: 0; padding: 2px 6px; font: 500 14px/1.35 var(--font-body); background: rgba(0, 0, 0, 0.45); transition: opacity 0.5s; overflow-wrap: anywhere; }
+#chat p.error { color: #ff8f80; }
+#chat p.death { color: #ffd6d6; }
+#chat p.adv { color: #f2e64a; }
+#chat-input-row { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 30; display: flex; gap: 6px; }
+#chat-input { flex: 1; font: 500 16px/1 var(--font-mono); background: rgba(0, 0, 0, 0.75); color: #fff; border: 0; padding: 10px; box-shadow: inset 0 0 0 2px #777; }
+#resume-hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, 40px); padding: 10px 16px; font: 700 18px/1 var(--font-display); background: rgba(0, 0, 0, 0.6); box-shadow: 0 0 0 2px var(--ink); }
+#goal { position: absolute; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); max-width: min(260px, 30vw); padding: 6px 9px; font: 500 12px/1.35 var(--font-body); color: var(--muted); background: rgba(0, 0, 0, 0.4); }
+#goal b { display: block; font: 700 13px/1.2 var(--font-display); color: var(--text); }
 
-/* Loading */
-#loading { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8, 9, 11, 0.72); }
+/* ---------- Loading, death, credits ---------- */
+#loading { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(8, 9, 11, 0.78); }
 #loading .box { width: min(320px, calc(100vw - 32px)); display: grid; gap: 12px; text-align: center; font: 700 20px/1 var(--font-display); }
-#loading .bar { height: 14px; background: var(--stone-lo); box-shadow: 0 0 0 2px var(--ink); }
-#loading .bar span { display: block; height: 100%; width: 0; background: var(--moss); box-shadow: inset 0 2px 0 var(--moss-hi); transition: width 0.2s; }
+#loading .bar2 { height: 14px; background: var(--stone-lo); box-shadow: 0 0 0 2px var(--ink); }
+#loading .bar2 span { display: block; height: 100%; width: 0; background: var(--moss); box-shadow: inset 0 2px 0 var(--moss-hi); transition: width 0.2s; }
+#death { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(120, 0, 0, 0.45); text-align: center; padding: 16px; }
+#death .box { display: grid; gap: 18px; justify-items: center; }
+#death h2 { font-size: clamp(40px, 9vw, 64px); text-shadow: 4px 4px 0 #3a0000; }
+#death p { margin: 0; font: 600 17px/1.3 var(--font-display); }
+#credits { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #000; text-align: center; padding: 16px; overflow-y: auto; }
+#credits .box { width: min(560px, 100%); display: grid; gap: 16px; justify-items: center; }
+#credits p { margin: 0; color: #cfc9bd; font: 500 16px/1.6 var(--font-body); }
+#credits .poem { color: #9fe0ff; font-style: italic; }
+#credits dl { display: grid; grid-template-columns: auto auto; gap: 6px 18px; margin: 0; font: 600 14px/1.3 var(--font-mono); text-align: left; }
+#credits dd { margin: 0; color: #fff; font-variant-numeric: tabular-nums; }
+#credits dt { color: var(--muted); }
+.adv-list { display: grid; gap: 6px; max-height: 52vh; overflow-y: auto; }
+.adv { display: grid; grid-template-columns: 32px 1fr; gap: 2px 10px; align-items: center; padding: 7px 10px; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 2px var(--stone-lo); }
+.adv img { grid-row: 1 / 3; width: 30px; height: 30px; }
+.adv b { font: 700 15px/1.2 var(--font-display); }
+.adv span { font-size: 13px; color: var(--muted); }
+.adv.done { box-shadow: inset 0 0 0 2px var(--moss); }
+.adv.done b::after { content: " ✓"; color: var(--moss-hi); }
+.adv.next { box-shadow: inset 0 0 0 2px var(--ember); }
+.adv.locked img { filter: grayscale(1) brightness(0.5); }
 
-/* Touch controls */
-#touch { position: fixed; inset: 0; pointer-events: none; }
+/* ---------- Touch controls ---------- */
+#touch { position: fixed; inset: 0; pointer-events: none; z-index: 12; }
 #touch button, #stick { pointer-events: auto; touch-action: none; }
-#stick {
-  position: absolute;
-  left: calc(22px + env(safe-area-inset-left, 0px));
-  bottom: calc(var(--slot) + 40px + env(safe-area-inset-bottom, 0px));
-  width: 128px;
-  height: 128px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25);
-}
+#stick { position: absolute; left: calc(22px + env(safe-area-inset-left, 0px)); bottom: calc(var(--slot) * 2 + 40px + env(safe-area-inset-bottom, 0px)); width: 128px; height: 128px; border-radius: 50%; background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25); }
 #stick-knob { position: absolute; left: 39px; top: 39px; width: 50px; height: 50px; border-radius: 50%; background: rgba(243, 236, 216, 0.55); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4); }
-.tbtn {
-  width: 64px;
-  height: 64px;
-  border: 0;
-  font: 700 13px/1 var(--font-display);
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.36);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25);
-}
+.tbtn { width: 62px; height: 62px; border: 0; font: 700 13px/1 var(--font-display); color: var(--text); background: rgba(0, 0, 0, 0.36); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25); }
 .tbtn.down { background: rgba(242, 184, 68, 0.45); }
-.tpad { position: absolute; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(var(--slot) + 36px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(2, 64px); gap: 10px; }
-.ttop { position: absolute; right: calc(12px + env(safe-area-inset-right, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); display: flex; gap: 8px; }
+.tpad { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(var(--slot) * 2 + 36px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(2, 62px); gap: 10px; }
+.ttop { position: absolute; right: calc(12px + env(safe-area-inset-right, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: 70vw; }
 .ttop .tbtn { width: auto; height: 40px; padding: 0 12px; }
 
-#fatal { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; }
+#fatal { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; z-index: 50; }
 #fatal .slab { margin: 0; }
 #fatal p { margin: 0; color: var(--muted); }
 
 @media (max-width: 560px) {
-  .screen { background: rgba(8, 9, 11, 0.45); }
-  .slab { padding: 22px 18px; }
+  .screen { background: rgba(8, 9, 11, 0.5); }
+  .slab { padding: 20px 16px; }
+  #goal { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #held-name, #toast, #loading .bar span { transition: none; }
+  #held-name, #toast, #loading .bar2 span, #advancement, #chat p { transition: none; }
 }
 </style>
 </head>
@@ -292,26 +422,49 @@ kbd {
 <canvas id="game" aria-label="Game view"></canvas>
 
 <div id="hud" hidden>
-  <div id="underwater" hidden></div>
+  <div id="underwater" class="tint" hidden></div>
+  <div id="fire-tint" class="tint" hidden></div>
+  <div id="portal-tint" class="tint" style="opacity:0"></div>
+  <div id="hurt-tint" class="tint" style="opacity:0"></div>
+  <div id="sleep-tint" class="tint" style="opacity:0"></div>
   <div id="crosshair"></div>
   <pre id="debug" hidden></pre>
+  <div id="bossbar" hidden><span id="boss-name">Ender Dragon</span><div class="track"><i id="boss-fill"></i></div></div>
+  <div id="advancement" class="out" role="status" aria-live="polite"><img id="adv-icon" alt=""><b>Advancement made!</b><span id="adv-title"></span></div>
   <div id="toast" class="fade" role="status" aria-live="polite"></div>
+  <div id="chat" aria-live="polite"></div>
   <div id="held-name" class="fade"></div>
-  <div id="hotbar" role="toolbar" aria-label="Hotbar"></div>
+  <div id="goal" hidden></div>
+  <div id="bottom">
+    <div id="stats">
+      <div class="bar" id="armor-bar"></div>
+      <div class="bar right" id="air-bar"></div>
+      <div class="bar" id="health-bar"></div>
+      <div class="bar right" id="food-bar"></div>
+    </div>
+    <div id="hotbar" role="toolbar" aria-label="Hotbar"></div>
+  </div>
   <div id="resume-hint" hidden>Click to keep playing</div>
+</div>
+
+<div id="chat-input-row" hidden>
+  <input id="chat-input" type="text" autocomplete="off" spellcheck="false" maxlength="256" aria-label="Chat or command">
+  <button id="chat-send" class="btn small" type="button">Send</button>
 </div>
 
 <div id="touch" hidden>
   <div id="stick" aria-label="Move"><div id="stick-knob"></div></div>
   <div class="tpad">
-    <button class="tbtn" id="t-break" type="button">Break</button>
-    <button class="tbtn" id="t-place" type="button">Place</button>
+    <button class="tbtn" id="t-break" type="button">Hit</button>
+    <button class="tbtn" id="t-place" type="button">Use</button>
     <button class="tbtn" id="t-sneak" type="button">Down</button>
     <button class="tbtn" id="t-jump" type="button">Jump</button>
   </div>
   <div class="ttop">
     <button class="tbtn" id="t-fly" type="button">Fly</button>
-    <button class="tbtn" id="t-blocks" type="button">Blocks</button>
+    <button class="tbtn" id="t-drop" type="button">Drop</button>
+    <button class="tbtn" id="t-chat" type="button">Chat</button>
+    <button class="tbtn" id="t-blocks" type="button">Inventory</button>
     <button class="tbtn" id="t-pause" type="button">Menu</button>
   </div>
 </div>
@@ -319,53 +472,90 @@ kbd {
 <section id="title" class="screen" aria-labelledby="logo">
   <div class="slab">
     <div>
-      <span class="eyebrow">Voxel sandbox</span>
+      <span class="eyebrow">Survive · Build · Defeat the dragon</span>
       <h1 class="logo" id="logo">Blockcraft</h1>
     </div>
-    <p class="tagline">Dig, build and wander an endless world of blocks. Every world grows from its seed, so the same seed always gives the same land.</p>
-    <div class="field">
-      <label for="seed">World seed</label>
-      <input id="seed" type="text" autocomplete="off" spellcheck="false" maxlength="40">
-      <button id="seed-shuffle" class="btn small" type="button">Shuffle</button>
+    <p class="tagline">Punch trees, craft tools, mine for diamonds, survive the night, cross the Nether and slay the Ender Dragon. Or switch to creative and just build.</p>
+    <div>
+      <div class="label" id="worlds-label">Your worlds</div>
+      <div class="worlds" id="world-list" role="listbox" aria-labelledby="worlds-label"></div>
     </div>
     <div class="actions">
-      <button id="btn-play" class="btn primary" type="button">Create world</button>
-      <button id="btn-new" class="btn" type="button" hidden>New world</button>
+      <button id="btn-play" class="btn primary" type="button">Play selected world</button>
+      <button id="btn-create" class="btn" type="button">Create new world</button>
     </div>
     <p class="status" id="title-status"></p>
     <details class="controls">
       <summary>Controls</summary>
       <dl class="keys" id="key-help">
         <dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>Walk</dd>
-        <dt><kbd>Space</kbd></dt><dd>Jump. Tap twice to fly</dd>
-        <dt><kbd>Shift</kbd></dt><dd>Sneak, or fly down</dd>
-        <dt><kbd>Ctrl</kbd></dt><dd>Sprint</dd>
-        <dt>Left click</dt><dd>Break block</dd>
-        <dt>Right click</dt><dd>Place block</dd>
-        <dt>Middle click</dt><dd>Pick the block you're looking at</dd>
+        <dt><kbd>Space</kbd></dt><dd>Jump. In creative, tap twice to fly</dd>
+        <dt><kbd>Shift</kbd> / <kbd>Ctrl</kbd></dt><dd>Sneak / sprint</dd>
+        <dt>Left mouse</dt><dd>Mine (hold) or attack</dd>
+        <dt>Right mouse</dt><dd>Place, use, eat (hold), draw a bow (hold)</dd>
+        <dt>Middle mouse</dt><dd>Pick the block you're looking at</dd>
         <dt><kbd>1</kbd>–<kbd>9</kbd>, wheel</dt><dd>Choose hotbar slot</dd>
-        <dt><kbd>E</kbd></dt><dd>All blocks</dd>
-        <dt><kbd>F</kbd></dt><dd>Fly on or off</dd>
-        <dt><kbd>F3</kbd></dt><dd>Position and debug info</dd>
+        <dt><kbd>E</kbd></dt><dd>Inventory and crafting</dd>
+        <dt><kbd>Q</kbd></dt><dd>Drop the held item (<kbd>Ctrl</kbd>+<kbd>Q</kbd>: the whole stack)</dd>
+        <dt><kbd>T</kbd> or <kbd>/</kbd></dt><dd>Chat and commands (try <kbd>/help</kbd>)</dd>
+        <dt><kbd>L</kbd></dt><dd>Advancements: your next goal</dd>
+        <dt><kbd>F3</kbd> / <kbd>F1</kbd></dt><dd>Debug info / hide the HUD</dd>
         <dt><kbd>Esc</kbd></dt><dd>Pause and settings</dd>
       </dl>
       <dl class="keys" id="touch-help" hidden>
         <dt>Left stick</dt><dd>Walk. Push all the way to sprint</dd>
         <dt>Drag anywhere</dt><dd>Look around</dd>
-        <dt>Break, Place</dt><dd>Act on the block under the crosshair. Hold to repeat</dd>
-        <dt>Jump, Down</dt><dd>Jump and sneak, or rise and sink while flying</dd>
-        <dt>Hotbar</dt><dd>Tap a slot to hold that block</dd>
-        <dt>Blocks</dt><dd>Every block, for the selected slot</dd>
+        <dt>Hit</dt><dd>Mine (hold) or attack</dd>
+        <dt>Use</dt><dd>Place, open, eat or draw a bow (hold)</dd>
+        <dt>Inventory</dt><dd>Crafting and items. Tap to pick up, long-press for half</dd>
       </dl>
     </details>
   </div>
 </section>
 
+<section id="create" class="screen" hidden aria-labelledby="create-title">
+  <div class="slab">
+    <h2 id="create-title">New world</h2>
+    <div class="field">
+      <label for="world-name">World name</label>
+      <input id="world-name" type="text" autocomplete="off" spellcheck="false" maxlength="32">
+    </div>
+    <div class="field">
+      <label for="seed">Seed</label>
+      <input id="seed" type="text" autocomplete="off" spellcheck="false" maxlength="40">
+      <button id="seed-shuffle" class="btn small" type="button">Shuffle</button>
+    </div>
+    <div>
+      <div class="label" id="mode-label">Game mode</div>
+      <div class="choices" id="mode-choices" role="group" aria-labelledby="mode-label">
+        <button class="btn" type="button" data-mode="survival" aria-pressed="true">Survival</button>
+        <button class="btn" type="button" data-mode="creative" aria-pressed="false">Creative</button>
+      </div>
+      <p class="hint" id="mode-hint">Gather resources, craft tools, eat to stay alive, and work toward the Ender Dragon.</p>
+    </div>
+    <div>
+      <div class="label" id="diff-label">Difficulty</div>
+      <div class="choices" id="diff-choices" role="group" aria-labelledby="diff-label">
+        <button class="btn" type="button" data-diff="peaceful" aria-pressed="false">Peaceful</button>
+        <button class="btn" type="button" data-diff="easy" aria-pressed="false">Easy</button>
+        <button class="btn" type="button" data-diff="normal" aria-pressed="true">Normal</button>
+        <button class="btn" type="button" data-diff="hard" aria-pressed="false">Hard</button>
+      </div>
+    </div>
+    <div class="toggles"><label for="opt-cheats"><input id="opt-cheats" type="checkbox" checked> Allow commands (/give, /gamemode, /tp…)</label></div>
+    <div class="actions">
+      <button id="btn-create-go" class="btn primary" type="button">Create world</button>
+      <button id="btn-create-cancel" class="btn" type="button">Back</button>
+    </div>
+  </div>
+</section>
+
 <section id="pause" class="screen" hidden aria-labelledby="pause-title">
   <div class="slab">
-    <h2 id="pause-title">Paused</h2>
+    <h2 id="pause-title">Game menu</h2>
     <div class="actions">
-      <button id="btn-resume" class="btn primary" type="button">Back to the world</button>
+      <button id="btn-resume" class="btn primary" type="button">Back to game</button>
+      <button id="btn-adv" class="btn" type="button">Advancements</button>
     </div>
     <div class="settings">
       <div class="setting">
@@ -384,32 +574,62 @@ kbd {
         <label for="opt-sound"><input id="opt-sound" type="checkbox"> Sound</label>
         <label for="opt-bob"><input id="opt-bob" type="checkbox"> View bobbing</label>
         <label for="opt-invert"><input id="opt-invert" type="checkbox"> Invert look</label>
+        <label for="opt-goal"><input id="opt-goal" type="checkbox"> Show next goal</label>
+      </div>
+      <div>
+        <div class="label" id="pdiff-label">Difficulty</div>
+        <div class="choices" id="pause-diff" role="group" aria-labelledby="pdiff-label">
+          <button class="btn small" type="button" data-diff="peaceful">Peaceful</button>
+          <button class="btn small" type="button" data-diff="easy">Easy</button>
+          <button class="btn small" type="button" data-diff="normal">Normal</button>
+          <button class="btn small" type="button" data-diff="hard">Hard</button>
+        </div>
       </div>
     </div>
     <div class="actions">
-      <button id="btn-quit" class="btn" type="button">Save and go to title</button>
+      <button id="btn-quit" class="btn" type="button">Save and quit to title</button>
     </div>
     <p class="status" id="pause-status"></p>
   </div>
 </section>
 
-<section id="inventory" class="screen centered" hidden aria-labelledby="inv-title">
+<section id="advancements" class="screen centered" hidden aria-labelledby="adv-heading">
   <div class="slab wide">
-    <div class="inv-head">
-      <div>
-        <h2 id="inv-title">Blocks</h2>
-        <p>Choose a block for slot <b id="inv-slot">1</b>. Number keys switch slots.</p>
-      </div>
-      <button id="inv-close" class="btn small" type="button">Done</button>
-    </div>
-    <div id="inv-grid" class="inv-grid"></div>
+    <div class="gui-head" style="color:var(--text)"><h2 id="adv-heading">Advancements</h2><button id="adv-close" class="btn small" type="button">Done</button></div>
+    <p class="hint" id="adv-summary"></p>
+    <div class="adv-list" id="adv-list"></div>
   </div>
 </section>
 
+<div id="window" hidden></div>
+<div id="cursor-stack" hidden></div>
+<div id="tooltip" hidden></div>
+
 <div id="loading" hidden>
   <div class="box">
-    <span id="loading-text">Growing the world</span>
-    <div class="bar"><span id="loading-bar"></span></div>
+    <span id="loading-text">Loading terrain</span>
+    <div class="bar2"><span id="loading-bar"></span></div>
+  </div>
+</div>
+
+<div id="death" hidden>
+  <div class="box">
+    <h2>You died!</h2>
+    <p id="death-message"></p>
+    <div class="actions">
+      <button id="btn-respawn" class="btn primary" type="button">Respawn</button>
+      <button id="btn-death-title" class="btn" type="button">Title screen</button>
+    </div>
+  </div>
+</div>
+
+<div id="credits" hidden>
+  <div class="box">
+    <h2>The End</h2>
+    <p class="poem">The dragon is gone and the island is quiet. Somewhere far below, a seed is still growing worlds. You walked out of one of them, past the pillars, through the fire, and you are free to walk back in.</p>
+    <dl id="credit-stats"></dl>
+    <p>Blockcraft, a voxel sandbox built in WebGL2.</p>
+    <button id="btn-credits-done" class="btn primary" type="button">Continue</button>
   </div>
 </div>
 

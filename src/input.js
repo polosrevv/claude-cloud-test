@@ -172,5 +172,7 @@ export class Input {
     hold('#t-fly', () => actions.fly());
     hold('#t-blocks', () => actions.inventory());
     hold('#t-pause', () => actions.pause());
+    hold('#t-drop', () => actions.drop());
+    hold('#t-chat', () => actions.chat());
   }
 }

@@ -1,7 +1,7 @@
 // Keeps the world loaded around the camera: asks workers to generate chunks,
 // meshes the ones whose neighbours are all present, uploads the results and
 // frees whatever has drifted out of range.
-import { CHUNK } from './terrain.js';
+import { CHUNK } from './constants.js';
 import { chunkKey } from './world.js';
 import { createJobRunner } from './jobs.js';
 
@@ -149,10 +149,7 @@ export class Streamer {
       const key = chunkKey(cx + dx, cz + dz);
       let c = world.chunks.get(key);
       if (!c) {
-        c = {
-          key, cx: cx + dx, cz: cz + dz, blocks: null, gpu: null,
-          version: 0, meshedVersion: -1, urgent: 0, genPending: false, meshPending: false,
-        };
+        c = world.makeChunk(cx + dx, cz + dz);
         world.chunks.set(key, c);
       }
       c.visible = dx * dx + dz * dz <= (this.radius + 0.5) * (this.radius + 0.5);
@@ -164,7 +161,7 @@ export class Streamer {
       const dz = c.cz - cz;
       if (dx * dx + dz * dz > keep) {
         this.renderer.deleteChunkMesh(c);
-        world.chunks.delete(c.key);
+        world.unloadChunk(c);
       }
     }
   }
@@ -210,14 +207,14 @@ export class Streamer {
   }
 
   requestGen(c) {
-    if (!this.dispatch({ type: 'gen', key: c.key, cx: c.cx, cz: c.cz }, [])) return false;
+    if (!this.dispatch({ type: 'gen', key: c.key, cx: c.cx, cz: c.cz, dimension: this.world.dimension }, [])) return false;
     c.genPending = true;
     return true;
   }
 
   requestMesh(c) {
     const region = this.world.buildRegion(c.cx, c.cz);
-    const job = { type: 'mesh', key: c.key, version: c.version, region: region.buffer };
+    const job = { type: 'mesh', key: c.key, version: c.version, region: region.buffer, skyLight: this.world.info.skyLight };
     if (!this.dispatch(job, [region.buffer])) return false;
     c.meshPending = true;
     return true;
@@ -239,11 +236,12 @@ export class Streamer {
     if (!c) return;
     if (msg.type === 'gen') {
       c.genPending = false;
-      this.world.acceptChunk(c, msg.blocks);
+      if (!c.blocks) this.world.acceptChunk(c, msg.blocks);
     } else if (msg.type === 'mesh') {
       c.meshPending = false;
       if (msg.version < c.meshedVersion) return;
       this.renderer.uploadChunkMesh(c, msg.mesh);
+      c.light = new Uint8Array(msg.mesh.light);
       c.meshedVersion = msg.version;
       if (c.version === msg.version) c.urgent = 0;
     }

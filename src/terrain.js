@@ -3,10 +3,12 @@
 // any worker) and trees that straddle chunk borders still line up.
 import { Simplex, mulberry32, hash2, hash3 } from './noise.js';
 import { B, PLANT, LEAVES } from './blocks.js';
+import { CHUNK, HEIGHT, SEA_LEVEL, blockIndex } from './constants.js';
+import { broadleafTree, spruceTree, strongholdRoom, STRONGHOLD_SIZE, dungeon, DUNGEON_SIZE } from './structures.js';
+import { createNether } from './nether.js';
+import { createEnd } from './end.js';
 
-export const CHUNK = 16;
-export const HEIGHT = 128;
-export const SEA_LEVEL = 48;
+export { CHUNK, HEIGHT, SEA_LEVEL, blockIndex };
 
 export const BIOME = { OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, TUNDRA: 5, MOUNTAINS: 6, PEAKS: 7 };
 export const BIOME_NAMES = ['Ocean', 'Beach', 'Plains', 'Forest', 'Desert', 'Snowy Tundra', 'Mountains', 'Snowy Peaks'];
@@ -15,14 +17,24 @@ export const BIOME_NAMES = ['Ocean', 'Beach', 'Plains', 'Forest', 'Desert', 'Sno
 const TREE_DENSITY = [0, 0, 0.05, 0.72, 0.14, 0.3, 0.12, 0];
 const TREE_CELL = 5;
 
-export const blockIndex = (x, y, z) => (y * CHUNK + z) * CHUNK + x;
-
 function smoothstep(a, b, x) {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 }
 
-export function createTerrain(seed) {
+export const DIMENSIONS = {
+  overworld: { name: 'Overworld', sky: true, skyLight: 15 },
+  nether: { name: 'The Nether', sky: false, skyLight: 0, scale: 8 },
+  end: { name: 'The End', sky: false, skyLight: 0 },
+};
+
+export function createTerrain(seed, dimension = 'overworld') {
+  if (dimension === 'nether') return createNether(seed);
+  if (dimension === 'end') return createEnd(seed);
+  return createOverworld(seed);
+}
+
+function createOverworld(seed) {
   const rnd = mulberry32(seed);
   const continent = new Simplex(rnd);
   const hills = new Simplex(rnd);
@@ -132,15 +144,132 @@ export function createTerrain(seed) {
         const top = h < SEA_LEVEL + 2 ? h - 5 : h;
         for (let y = 5; y <= top; y++) {
           const i = blockIndex(lx, y, lz);
-          if (data[i] !== B.BEDROCK && isCave(wx, y, wz, h)) data[i] = B.AIR;
+          // Deep caves flood with lava, as they do in Minecraft.
+          if (data[i] !== B.BEDROCK && isCave(wx, y, wz, h)) data[i] = y <= 10 ? B.LAVA : B.AIR;
+        }
+
+        // Frozen lakes and seas in cold places; clay on shallow sea beds.
+        if (h < SEA_LEVEL && info.temperature < -0.28) data[blockIndex(lx, SEA_LEVEL, lz)] = B.ICE;
+        if (h < SEA_LEVEL - 1 && h >= SEA_LEVEL - 7 && hash2(wx >> 2, wz >> 2, plantSeed ^ 0x1234) < 0.18) {
+          data[blockIndex(lx, h, lz)] = B.CLAY;
         }
       }
     }
 
     addOres(data, cx, cz);
     addPlants(data, heights, biomes, x0, z0);
+    addSugarCane(data, heights, x0, z0);
     addTrees(data, x0, z0, info);
+    addStructures(data, x0, z0);
     return data;
+  }
+
+  // Sugar cane grows on shore blocks right next to water.
+  function addSugarCane(data, heights, x0, z0) {
+    const near = {};
+    for (let lz = 0; lz < CHUNK; lz++) {
+      for (let lx = 0; lx < CHUNK; lx++) {
+        const h = heights[lz * CHUNK + lx];
+        if (h !== SEA_LEVEL && h !== SEA_LEVEL + 1) continue;
+        const wx = x0 + lx;
+        const wz = z0 + lz;
+        if (hash2(wx, wz, plantSeed ^ 0x77) > 0.22) continue;
+        const ground = data[blockIndex(lx, h, lz)];
+        if (ground !== B.GRASS && ground !== B.SAND && ground !== B.DIRT) continue;
+        let wet = false;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          if (column(wx + dx, wz + dz, near).h < SEA_LEVEL) wet = true;
+        }
+        if (!wet) continue;
+        const tall = 1 + Math.floor(hash2(wx, wz, plantSeed ^ 0x99) * 3);
+        for (let k = 1; k <= tall; k++) {
+          const i = blockIndex(lx, h + k, lz);
+          if (data[i] !== B.AIR && !PLANT[data[i]]) break;
+          data[i] = B.SUGAR_CANE;
+        }
+      }
+    }
+  }
+
+  // ---- Structures ----
+  const strongholdSeed = seed ^ 0x51a7;
+  let strongholdList = null;
+  // Three portal rooms in a ring around spawn, 520-760 blocks out.
+  function strongholds() {
+    if (!strongholdList) {
+      strongholdList = [];
+      const base = hash2(1, 2, strongholdSeed) * Math.PI * 2;
+      for (let i = 0; i < 3; i++) {
+        const a = base + (i * Math.PI * 2) / 3;
+        const r = 520 + hash2(i, 7, strongholdSeed) * 240;
+        const x = Math.floor(Math.cos(a) * r);
+        const z = Math.floor(Math.sin(a) * r);
+        strongholdList.push({ x, y: 20, z, centre: [x + 5.5, 21, z + 10.5] });
+      }
+    }
+    return strongholdList;
+  }
+
+  // At most one dungeon per 48x48 area, buried well below the surface.
+  const DUNGEON_CELL = 48;
+  function dungeonIn(gx, gz) {
+    if (hash2(gx, gz, seed ^ 0xd06) > 0.45) return null;
+    const x = gx * DUNGEON_CELL + 4 + Math.floor(hash2(gx, gz, seed ^ 0xd07) * (DUNGEON_CELL - 16));
+    const z = gz * DUNGEON_CELL + 4 + Math.floor(hash2(gx, gz, seed ^ 0xd08) * (DUNGEON_CELL - 16));
+    const y = 12 + Math.floor(hash2(gx, gz, seed ^ 0xd09) * 24);
+    const surface = column(x + 4, z + 4, {}).h;
+    if (surface < y + 12) return null;
+    return { x, y, z };
+  }
+
+  function addStructures(data, x0, z0) {
+    const set = (x, y, z, id) => {
+      const lx = x - x0;
+      const lz = z - z0;
+      if (lx < 0 || lx >= CHUNK || lz < 0 || lz >= CHUNK || y < 1 || y >= HEIGHT) return;
+      data[blockIndex(lx, y, lz)] = id;
+    };
+    const get = (x, y, z) => {
+      const lx = x - x0;
+      const lz = z - z0;
+      if (lx < 0 || lx >= CHUNK || lz < 0 || lz >= CHUNK || y < 0 || y >= HEIGHT) return null;
+      return data[blockIndex(lx, y, lz)];
+    };
+    for (let gz = Math.floor((z0 - 16) / DUNGEON_CELL); gz <= Math.floor((z0 + CHUNK) / DUNGEON_CELL); gz++) {
+      for (let gx = Math.floor((x0 - 16) / DUNGEON_CELL); gx <= Math.floor((x0 + CHUNK) / DUNGEON_CELL); gx++) {
+        const d = dungeonIn(gx, gz);
+        if (!d) continue;
+        if (d.x + DUNGEON_SIZE[0] < x0 || d.x > x0 + CHUNK || d.z + DUNGEON_SIZE[2] < z0 || d.z > z0 + CHUNK) continue;
+        dungeon(set, get, d.x, d.y, d.z, seed);
+      }
+    }
+    for (const s of strongholds()) {
+      if (s.x + STRONGHOLD_SIZE[0] < x0 || s.x > x0 + CHUNK || s.z + STRONGHOLD_SIZE[2] < z0 || s.z > z0 + CHUNK) continue;
+      strongholdRoom(set, s.x, s.y, s.z, strongholdSeed);
+    }
+  }
+
+  // Which loot table a generated chest at (x, y, z) belongs to.
+  function chestLoot(x, y, z) {
+    for (const s of strongholds()) {
+      if (x >= s.x && x < s.x + STRONGHOLD_SIZE[0] && z >= s.z && z < s.z + STRONGHOLD_SIZE[2] && y >= s.y && y < s.y + STRONGHOLD_SIZE[1]) return 'stronghold';
+    }
+    return 'dungeon';
+  }
+
+  function spawnerMob(x, y, z) {
+    const r = hash3(x, y, z, seed ^ 0x5b);
+    return r < 0.5 ? 'zombie' : r < 0.75 ? 'skeleton' : 'spider';
+  }
+
+  function locate(kind, x, z) {
+    if (kind !== 'stronghold') return null;
+    let best = null;
+    for (const s of strongholds()) {
+      const d = Math.hypot(s.centre[0] - x, s.centre[2] - z);
+      if (!best || d < best.distance) best = { x: Math.floor(s.centre[0]), y: s.y + 1, z: Math.floor(s.centre[2]), distance: d };
+    }
+    return best;
   }
 
   function addOres(data, cx, cz) {
@@ -222,42 +351,11 @@ export function createTerrain(seed) {
           const tall = 1 + Math.floor(v * 3);
           for (let y = 1; y <= tall; y++) set(tx, h + y, tz, B.CACTUS, false);
         } else if (info.biome === BIOME.TUNDRA || info.biome === BIOME.MOUNTAINS) {
-          spruce(set, tx, h, tz, 6 + Math.floor(v * 4));
+          spruceTree(set, tx, h, tz, 6 + Math.floor(v * 4));
         } else if (info.biome === BIOME.FOREST && v < 0.3) {
-          broadleaf(set, tx, h, tz, 5 + Math.floor(v * 10) % 3, B.BIRCH_LOG, B.BIRCH_LEAVES);
+          broadleafTree(set, tx, h, tz, 5 + Math.floor(v * 10) % 3, B.BIRCH_LOG, B.BIRCH_LEAVES, treeSeed + 4);
         } else {
-          broadleaf(set, tx, h, tz, 4 + Math.floor(v * 7) % 3, B.OAK_LOG, B.OAK_LEAVES);
-        }
-      }
-    }
-  }
-
-  function broadleaf(set, x, ground, z, trunk, log, leaf) {
-    const top = ground + trunk;
-    for (let y = ground + 1; y <= top; y++) set(x, y, z, log, true);
-    for (let y = top - 2; y <= top + 1; y++) {
-      const r = y >= top ? 1 : 2;
-      for (let dz = -r; dz <= r; dz++) {
-        for (let dx = -r; dx <= r; dx++) {
-          const corner = Math.abs(dx) === r && Math.abs(dz) === r;
-          if (corner && (y === top + 1 || hash3(x + dx, y, z + dz, treeSeed + 4) < 0.5)) continue;
-          set(x + dx, y, z + dz, leaf, false);
-        }
-      }
-    }
-  }
-
-  function spruce(set, x, ground, z, trunk) {
-    const top = ground + trunk;
-    for (let y = ground + 1; y <= top; y++) set(x, y, z, B.SPRUCE_LOG, true);
-    const radii = [0, 1, 1, 2, 1, 2, 3, 2, 3];
-    for (let i = 0; i < radii.length; i++) {
-      const y = top + 1 - i;
-      if (y <= ground + 2) break;
-      const r = radii[i];
-      for (let dz = -r; dz <= r; dz++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (dx * dx + dz * dz <= r * r + 0.5) set(x + dx, y, z + dz, B.SPRUCE_LEAVES, false);
+          broadleafTree(set, tx, h, tz, 4 + Math.floor(v * 7) % 3, B.OAK_LOG, B.OAK_LEAVES, treeSeed + 4);
         }
       }
     }
@@ -286,5 +384,16 @@ export function createTerrain(seed) {
     return fallback ?? { x: 0.5, y: HEIGHT - 20, z: 0.5 };
   }
 
-  return { seed, generateChunk, columnInfo, findSpawn };
+  return {
+    seed,
+    dimension: 'overworld',
+    generateChunk,
+    columnInfo,
+    findSpawn,
+    strongholds,
+    chestLoot,
+    spawnerMob,
+    locate,
+    biomeName: (x, z) => BIOME_NAMES[columnInfo(x, z).biome],
+  };
 }
