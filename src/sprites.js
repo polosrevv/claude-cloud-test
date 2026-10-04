@@ -384,6 +384,7 @@ export function buildItemArt({ put, mul, jitter, clear, art }) {
     item_bucket: bucket(null),
     item_water_bucket: bucket([52, 96, 210]),
     item_lava_bucket: bucket([250, 120, 30]),
+    item_milk_bucket: bucket([244, 244, 240]),
     item_flint_and_steel(t, r) {
       clear(t);
       art(t, r, ['', '',

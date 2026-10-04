@@ -110,6 +110,7 @@ food('cooked_chicken', 'Cooked Chicken', 6, 7.2);
 food('mutton', 'Raw Mutton', 2, 1.2);
 food('cooked_mutton', 'Cooked Mutton', 6, 9.6);
 food('rotten_flesh', 'Rotten Flesh', 4, 0.8, { poison: 0.8 });
+add('milk_bucket', { name: 'Milk Bucket', maxStack: 1, tab: 'food', food: { hunger: 0, saturation: 0, always: true, drink: true, cures: true, returns: 'bucket' } });
 
 // ---- Materials ----
 const mat = (key, name, extra = {}) => add(key, { name, ...extra });

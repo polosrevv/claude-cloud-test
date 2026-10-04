@@ -178,7 +178,7 @@ export class Hud {
     el.classList.remove('out');
     clearTimeout(this.advTimer);
     this.advTimer = setTimeout(() => el.classList.add('out'), 4500);
-    this.chat([{ text: `You have made the advancement [${a.title}]`, kind: 'adv' }]);
+    this.chat([{ text: `You have made the advancement [${a.title}]`, kind: 'achieved' }]);
   }
 
   bossBar(name, fraction = 1) {

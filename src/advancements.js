@@ -22,7 +22,7 @@ export const ADVANCEMENTS = [
   { id: 'ender_pearl', title: 'Pearls of the Night', about: 'Hunt an Enderman for an ender pearl', has: ['ender_pearl'] },
   { id: 'eye', title: 'Eye Spy', about: 'Craft eyes of ender, throw them, and follow them to a stronghold', event: 'stronghold' },
   { id: 'end', title: 'The End?', about: 'Fill the twelve portal frames with eyes and jump in', event: 'end' },
-  { id: 'dragon', title: 'Free the End', about: 'Destroy the end crystals, then slay the Ender Dragon', event: 'dragon' },
+  { id: 'dragon', title: 'Free the End', about: 'Bring blocks to climb onto the island, shoot the end crystals, then slay the Ender Dragon', event: 'dragon' },
   { id: 'egg', title: 'The Next Generation', about: 'Hold the Dragon Egg', has: ['dragon_egg'] },
 ];
 

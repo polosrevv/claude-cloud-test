@@ -201,9 +201,9 @@ export function hurtMob(e, amount, game, source = {}) {
   if (source.dir && e.type !== 'dragon') {
     const k = source.knockback ?? 1;
     const len = Math.hypot(source.dir[0], source.dir[2]) || 1;
-    e.vel[0] = (source.dir[0] / len) * 5 * k;
-    e.vel[2] = (source.dir[2] / len) * 5 * k;
-    if (e.onGround) e.vel[1] = 5;
+    e.vel[0] = (source.dir[0] / len) * 4 * k;
+    e.vel[2] = (source.dir[2] / len) * 4 * k;
+    if (e.onGround) e.vel[1] = 4.5;
   }
   if (def.passive) {
     e.panic = 100;

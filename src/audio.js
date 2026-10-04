@@ -165,6 +165,7 @@ const VOICES = {
   pop: (v) => tone('sine', 600, 950, 0.07, 0.12 * v),
   fizz: (v) => hiss('highpass', 2500, 0.6, 0.12 * v, 0, 0.5),
   eat: (v) => { for (let i = 0; i < 3; i++) hiss('bandpass', 900 + Math.random() * 400, 0.06, 0.12 * v, i * 0.08, 1.5); },
+  drink: (v) => { for (let i = 0; i < 4; i++) tone('sine', 300, 180, 0.08, 0.1 * v, i * 0.12, ['lowpass', 800]); },
   burp: (v) => tone('sawtooth', 160, 90, 0.3, 0.12 * v, 0, ['lowpass', 700]),
   bow: (v) => { tone('triangle', 320, 140, 0.2, 0.15 * v); hiss('bandpass', 1500, 0.15, 0.08 * v); },
   arrow_hit: (v) => hiss('bandpass', 2400, 0.06, 0.15 * v, 0, 3),

@@ -28,22 +28,22 @@ const DAY_TICKS = 24000;
 const TICK = 1 / TPS;
 const DIM_STYLE = {
   overworld: { sky: 'overworld', ambient: [0.045, 0.045, 0.045], fogColor: null },
-  nether: { sky: 'none', ambient: [0.3, 0.2, 0.17], fogColor: [0.22, 0.05, 0.04], fogNear: 0.1, fogFar: 0.8 },
-  end: { sky: 'end', ambient: [0.34, 0.3, 0.4], fogColor: [0.05, 0.03, 0.07], fogNear: 0.45, fogFar: 1 },
+  nether: { sky: 'none', ambient: [0.4, 0.28, 0.23], fogColor: [0.22, 0.05, 0.04], fogNear: 0.1, fogFar: 0.8 },
+  end: { sky: 'end', ambient: [0.62, 0.58, 0.66], fogColor: [0.05, 0.03, 0.07], fogNear: 0.45, fogFar: 1 },
 };
 const DEATH_MESSAGES = {
-  mob: (s) => `was slain by ${s}`,
-  arrow: (s) => `was shot by ${s}`,
-  explosion: (s) => (s ? `was blown up by ${s}` : 'blew up'),
+  mob: (s) => `were slain by ${s}`,
+  arrow: (s) => `were shot by ${s}`,
+  explosion: (s) => (s ? `were blown up by ${s}` : 'blew up'),
   fall: () => 'fell from a high place',
   lava: () => 'tried to swim in lava',
   fire: () => 'burned to death',
   drown: () => 'drowned',
   starve: () => 'starved to death',
-  cactus: () => 'was pricked to death',
+  cactus: () => 'were pricked to death',
   void: () => 'fell out of the world',
-  dragon: () => 'was slain by Ender Dragon',
-  fireball: (s) => `was fireballed by ${s}`,
+  dragon: () => 'were slain by the Ender Dragon',
+  fireball: (s) => `were fireballed by ${s}`,
   pearl: () => 'fell after teleporting',
   command: () => 'died',
 };
@@ -978,6 +978,12 @@ export class Game {
       this.swing = 0;
       return;
     }
+    if (held?.item === 'bucket' && e.type === 'cow' && !(e.growUp < 0)) {
+      if (this.player.vulnerable) this.replaceHeld({ item: 'milk_bucket', count: 1, damage: 0 });
+      this.sound('drink', e.pos, 0.5);
+      this.swing = 0;
+      return;
+    }
     if (held?.item === 'shears' && e.type === 'sheep' && !e.sheared && !(e.growUp < 0)) {
       e.sheared = true;
       this.dropStacks([e.pos[0], e.pos[1] + 1, e.pos[2]], [{ item: 'wool_white', count: 1 + Math.floor(Math.random() * 3) }]);
@@ -1218,11 +1224,11 @@ export class Game {
     u.time += dt;
     if (u.kind === 'eat') {
       if (Math.floor(u.time * 5) !== Math.floor((u.time - dt) * 5)) {
-        this.sound('eat', this.player.pos, 0.7);
+        const item = ITEMS[u.item];
+        this.sound(item.food.drink ? 'drink' : 'eat', this.player.pos, 0.7);
         const eye = this.player.eye;
         const look = this.player.look;
-        const item = ITEMS[u.item];
-        if (item.layer >= 0) {
+        if (item.layer >= 0 && !item.food.drink) {
           for (let i = 0; i < 3; i++) this.particles.add({
             pos: [eye[0] + look[0] * 0.5, eye[1] - 0.25, eye[2] + look[2] * 0.5],
             vel: [(Math.random() - 0.5) * 1.5, 1.5, (Math.random() - 0.5) * 1.5],
@@ -1241,12 +1247,14 @@ export class Game {
     p.food = Math.min(20, p.food + item.food.hunger);
     p.saturation = Math.min(p.food, p.saturation + item.food.saturation);
     if (item.food.regen) p.regenEffect = 100;
+    if (item.food.cures) p.regenEffect = 0;
     if (item.food.poison && Math.random() < item.food.poison) {
       p.exhaustion += 6;
       this.hud?.toast('That made you feel queasy');
     }
-    this.sound('burp', p.pos, 0.6);
-    this.consumeHeld();
+    this.sound(item.food.drink ? 'drink' : 'burp', p.pos, 0.6);
+    if (item.food.returns && p.vulnerable) this.replaceHeld({ item: item.food.returns, count: 1, damage: 0 });
+    else this.consumeHeld();
   }
 
   finishUsing(released) {
