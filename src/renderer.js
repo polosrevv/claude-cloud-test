@@ -7,6 +7,7 @@ import {
   cameraBasis, viewRotation, frustumPlanes, boxInFrustum,
 } from './math.js';
 import { MODEL_DEFS, buildModelMesh, skinLayer } from './models.js';
+import { MAX_WEATHER_QUADS } from './weather.js';
 
 const CHUNK_VS = `#version 300 es
 precision highp float;
@@ -138,6 +139,8 @@ uniform float uTime;
 uniform vec3 uCloudColor;
 uniform float uCloudY;
 uniform float uShowSun;
+uniform float uCelestial;
+uniform float uCloudCover;
 out vec4 outColor;
 
 float hash3(vec3 p) {
@@ -179,12 +182,12 @@ void main() {
     vec3 a = abs(dir);
     vec3 cube = dir / max(a.x, max(a.y, a.z));
     float s = hash3(floor(cube * 190.0));
-    if (s > 0.998) col += vec3(0.85, 0.88, 1.0) * uNight * (uShowSun > 0.5 ? smoothstep(0.0, 0.2, h) : 0.6) * (0.4 + 0.6 * (s - 0.998) / 0.002);
+    if (s > 0.998) col += vec3(0.85, 0.88, 1.0) * uNight * uCelestial * (uShowSun > 0.5 ? smoothstep(0.0, 0.2, h) : 0.6) * (0.4 + 0.6 * (s - 0.998) / 0.002);
   }
   if (uShowSun > 0.5) {
     float sun = disc(dir, uSunDir, 0.075);
-    col = mix(col, vec3(1.0, 0.96, 0.82), sun);
-    col += vec3(1.0, 0.85, 0.6) * pow(toSun, 60.0) * 0.35 * (1.0 - uNight);
+    col = mix(col, vec3(1.0, 0.96, 0.82), sun * uCelestial);
+    col += vec3(1.0, 0.85, 0.6) * pow(toSun, 60.0) * 0.35 * (1.0 - uNight) * uCelestial;
     vec3 moonDir = -uSunDir;
     if (disc(dir, moonDir, 0.05) > 0.0) {
       float d = dot(dir, moonDir);
@@ -192,7 +195,7 @@ void main() {
       vec3 u = cross(r, moonDir);
       vec2 q = vec2(dot(dir, r), dot(dir, u)) / d;
       float crater = hash2(floor(q * 60.0)) > 0.75 ? 0.82 : 1.0;
-      col = mix(col, vec3(0.86, 0.88, 0.94) * crater, 0.95);
+      col = mix(col, vec3(0.86, 0.88, 0.94) * crater, 0.95 * uCelestial);
     }
     // A flat layer of blocky clouds drifting east.
     if (h > 0.0 && uCamPos.y < uCloudY) {
@@ -200,9 +203,9 @@ void main() {
       vec2 p = uCamPos.xz + dir.xz * t + vec2(uTime * 1.6, 0.0);
       vec2 cell = floor(p / 12.0);
       float n = valueNoise(cell * 0.11) * 0.7 + valueNoise(cell * 0.37) * 0.3;
-      if (n > 0.6) {
+      if (n > 0.6 - uCloudCover * 0.32) {
         float fade = 1.0 - smoothstep(180.0, 900.0, t);
-        col = mix(col, uCloudColor, 0.88 * fade);
+        col = mix(col, uCloudColor, (0.88 + uCloudCover * 0.1) * fade);
       }
     }
   }
@@ -255,6 +258,24 @@ void main() {
   outColor = vec4(mix(tex.rgb * vColor.rgb, uFogColor, smoothstep(uFog.x, uFog.y, vDist)), 1.0);
 }`;
 
+// Rain, snow and lightning: textured, alpha-blended quads that never write depth.
+const WEATHER_FS = `#version 300 es
+precision highp float;
+precision highp sampler2DArray;
+uniform sampler2DArray uTex;
+uniform vec3 uFogColor;
+uniform vec2 uFog;
+in vec3 vUV;
+in vec4 vColor;
+in float vDist;
+out vec4 outColor;
+void main() {
+  vec4 tex = texture(uTex, vUV);
+  float a = tex.a * vColor.a;
+  if (a < 0.02) discard;
+  outColor = vec4(mix(tex.rgb * vColor.rgb, uFogColor, smoothstep(uFog.x, uFog.y, vDist)), a);
+}`;
+
 function compile(gl, vsSource, fsSource) {
   const shader = (type, src) => {
     const s = gl.createShader(type);
@@ -300,6 +321,7 @@ export class Renderer {
     this.skyProgram = compile(gl, SKY_VS, SKY_FS);
     this.lineProgram = compile(gl, LINE_VS, LINE_FS);
     this.particleProgram = compile(gl, PARTICLE_VS, PARTICLE_FS);
+    this.weatherProgram = compile(gl, PARTICLE_VS, WEATHER_FS);
     this.emptyVao = gl.createVertexArray();
 
     this.quadIndex = gl.createBuffer();
@@ -329,6 +351,19 @@ export class Renderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.particleData.byteLength, gl.DYNAMIC_DRAW);
     const stride = PARTICLE_FLOATS * 4;
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 4, gl.FLOAT, false, stride, 24);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.quadIndex);
+
+    this.weatherVao = gl.createVertexArray();
+    gl.bindVertexArray(this.weatherVao);
+    this.weatherBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.weatherBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, MAX_WEATHER_QUADS * 4 * PARTICLE_FLOATS * 4, gl.DYNAMIC_DRAW);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);
     gl.enableVertexAttribArray(1);
@@ -583,6 +618,7 @@ export class Renderer {
     gl.disable(gl.BLEND);
     gl.enable(gl.CULL_FACE);
 
+    if (frame.weather) this.drawWeather(frame.weather, viewProj, fogColor, fog);
     if (frame.hand) this.drawHand(frame, aspect);
 
     gl.bindVertexArray(null);
@@ -615,6 +651,8 @@ export class Renderer {
     gl.uniform3fv(p.u.uCloudColor, sky.cloudColor);
     gl.uniform1f(p.u.uCloudY, 168);
     gl.uniform1f(p.u.uShowSun, end ? 0 : 1);
+    gl.uniform1f(p.u.uCelestial, sky.celestial ?? 1);
+    gl.uniform1f(p.u.uCloudCover, sky.cloudCover ?? 0);
     gl.bindVertexArray(this.emptyVao);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.depthMask(true);
@@ -815,6 +853,29 @@ export class Renderer {
     gl.disable(gl.CULL_FACE);
     gl.drawElements(gl.TRIANGLES, n * 6, gl.UNSIGNED_INT, 0);
     gl.enable(gl.CULL_FACE);
+  }
+
+  drawWeather(weather, viewProj, fogColor, fog) {
+    const gl = this.gl;
+    const wp = this.weatherProgram;
+    gl.useProgram(wp.program);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.texture);
+    gl.uniformMatrix4fv(wp.u.uViewProj, false, viewProj);
+    gl.uniform1i(wp.u.uTex, 0);
+    gl.uniform3fv(wp.u.uFogColor, fogColor);
+    gl.uniform2f(wp.u.uFog, fog[0], fog[1]);
+    gl.bindVertexArray(this.weatherVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.weatherBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, weather.data, 0, weather.quads * 4 * PARTICLE_FLOATS);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    gl.disable(gl.CULL_FACE);
+    gl.drawElements(gl.TRIANGLES, weather.quads * 6, gl.UNSIGNED_INT, 0);
+    gl.enable(gl.CULL_FACE);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
   }
 
   // The held item (or bare arm), drawn last over a cleared depth buffer.

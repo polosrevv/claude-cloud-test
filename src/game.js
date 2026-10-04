@@ -22,6 +22,8 @@ import { skyAt } from './sky.js';
 import { Particles } from './particles.js';
 import { forBlocksIn } from './physics.js';
 import { Advancements } from './advancements.js';
+import { Weather } from './weather.js';
+import { textureIndex } from './textures.js';
 import { playBlockSound, playSound } from './audio.js';
 
 const DAY_TICKS = 24000;
@@ -45,6 +47,7 @@ const DEATH_MESSAGES = {
   dragon: () => 'were slain by the Ender Dragon',
   fireball: (s) => `were fireballed by ${s}`,
   pearl: () => 'fell after teleporting',
+  lightning: () => 'were struck by lightning',
   command: () => 'died',
 };
 
@@ -83,7 +86,8 @@ export class Game {
     this.tickCount = save?.tickCount ?? 0;
     this.dayTicks = save?.dayTicks ?? 0;
     this.difficulty = save?.difficulty ?? meta.difficulty ?? 'normal';
-    this.gamerules = { keepInventory: false, doDaylightCycle: true, doMobSpawning: true, mobGriefing: true, doFireTick: true, naturalRegeneration: true, ...(save?.gamerules || {}) };
+    this.gamerules = { keepInventory: false, doDaylightCycle: true, doMobSpawning: true, mobGriefing: true, doFireTick: true, naturalRegeneration: true, doWeatherCycle: true, ...(save?.gamerules || {}) };
+    this.weather = new Weather(save?.weather);
     this.stats = { playTicks: 0, mobsKilled: 0, blocksMined: 0, blocksPlaced: 0, deaths: 0, ...(save?.stats || {}) };
     this.dragonState = save?.dragon ?? { killed: false, started: false };
     this.advancements = new Advancements(save?.advancements, (a) => this.onAdvancement(a));
@@ -188,6 +192,7 @@ export class Game {
       gamerules: this.gamerules,
       stats: this.stats,
       dragon: this.dragonState,
+      weather: this.weather.serialize(),
       advancements: this.advancements.serialize(),
       worldSpawn: this.worldSpawn,
       inventory: this.inventory.serialize(),
@@ -290,6 +295,7 @@ export class Game {
     this.stats.playTicks++;
     if (this.gamerules.doDaylightCycle && this.world.dimension === 'overworld') this.dayTicks++;
     const world = this.world;
+    this.weather.tick(this);
     this.updater.process();
     this.updater.runScheduled();
     if (this.tickCount % 2 === 0) this.updater.randomTicks();
@@ -366,7 +372,7 @@ export class Game {
       this.damagePlayer(1, 'fire');
     }
     if (cactus) this.damagePlayer(1, 'cactus');
-    if (p.inWater) p.fireTicks = 0;
+    if (p.inWater || (p.fireTicks > 0 && this.weather.wet(world, p.pos[0], p.pos[1] + 1.6, p.pos[2]))) p.fireTicks = 0;
     if (p.fireTicks > 0) {
       p.fireTicks--;
       if (p.fireTicks % 20 === 0) this.damagePlayer(1, 'fire');
@@ -429,7 +435,7 @@ export class Game {
     const p = this.player;
     if (!p.vulnerable || p.dead || amount <= 0) return false;
     let dmg = amount;
-    const armoured = ['mob', 'arrow', 'explosion', 'cactus', 'lava', 'fireball', 'dragon'].includes(cause);
+    const armoured = ['mob', 'arrow', 'explosion', 'cactus', 'lava', 'fireball', 'dragon', 'lightning'].includes(cause);
     if (armoured) {
       const points = this.armorPoints();
       dmg *= 1 - Math.min(20, points) / 25;
@@ -564,7 +570,7 @@ export class Game {
   lightAt(x, y, z) {
     const l = this.world.getLight(x, y, z);
     let sky = l >> 4;
-    if (this.world.dimension === 'overworld') sky = Math.max(0, sky - Math.round((1 - this.sunlight()) * 11.5));
+    if (this.world.dimension === 'overworld') sky = Math.max(0, sky - Math.min(11, Math.round((1 - this.sunlight()) * 11.5 + this.weather.rain * 3 + this.weather.thunder * 7)));
     return Math.max(sky, l & 15);
   }
 
@@ -1462,7 +1468,7 @@ export class Game {
       return;
     }
     const t0 = this.timeOfDay;
-    const night = t0 > 0.52 && t0 < 0.98;
+    const night = (t0 > 0.52 && t0 < 0.98) || this.weather.state.thundering;
     this.setSpawn([t.x, t.y, t.z], 'overworld');
     if (!night) {
       this.hud?.toast('Respawn point set. You can only sleep at night.');
@@ -1483,7 +1489,8 @@ export class Game {
     this.sleepTicks++;
     this.hud?.sleep(Math.min(1, this.sleepTicks / 60));
     if (this.sleepTicks >= 100) {
-      this.dayTicks += DAY_TICKS - (this.dayTicks % DAY_TICKS) + 0;
+      this.dayTicks += DAY_TICKS - (this.dayTicks % DAY_TICKS);
+      if (this.weather.state.raining) this.weather.set('clear');
       this.state = 'playing';
       this.hud?.sleep(null);
       this.hud?.toast('Good morning');
@@ -1591,6 +1598,20 @@ export class Game {
     this.state = 'playing';
   }
 
+  // Lightning hurts and sets fire to everything close to where it lands.
+  lightningStruck(x, y, z) {
+    const p = this.player;
+    if (p.vulnerable && Math.hypot(p.pos[0] - x, p.pos[1] - y, p.pos[2] - z) < 3.5) {
+      this.damagePlayer(5, 'lightning');
+      p.fireTicks = Math.max(p.fireTicks, 160);
+    }
+    const near = (e) => e.deathTime === 0 && Math.hypot(e.pos[0] - x, e.pos[1] - y, e.pos[2] - z) < 3.5;
+    for (const e of this.entities.mobs(near)) {
+      if (!e.def.fireImmune) e.fire = Math.max(e.fire, 160);
+      hurtMob(e, 5, this, { kind: 'lightning' });
+    }
+  }
+
   onDragonKilled() {
     this.advancements.event('dragon');
     this.hud?.toast('The Ender Dragon is dead. The exit portal is open at the centre of the island.');
@@ -1623,9 +1644,33 @@ export class Game {
   // ---------------------------------------------------------------- rendering
 
   // Build the renderer's frame description from the current state.
+  // Rain greys the sky and dims the daylight; lightning flashes it white.
+  weatherSky(sky) {
+    const w = this.weather;
+    const rain = w.rain;
+    const flash = w.flash / 4;
+    if (rain <= 0 && flash <= 0) return sky;
+    const dim = (1 - rain * 0.35) * (1 - w.thunder * 0.4);
+    const grey = (c, f) => {
+      const l = (c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11) * f;
+      return c.map((v) => (v + (l - v) * rain * 0.85) * dim + flash * 0.45);
+    };
+    return {
+      ...sky,
+      zenith: grey(sky.zenith, 0.7),
+      horizon: grey(sky.horizon, 0.75),
+      cloudColor: sky.cloudColor.map((v) => v * (1 - rain * 0.45) * dim + flash * 0.3),
+      sunset: sky.sunset * (1 - rain),
+      daylight: Math.min(1, sky.daylight * dim + flash * 0.6),
+      celestial: 1 - rain,
+      cloudCover: rain,
+    };
+  }
+
   view(settings, titleCamera) {
     const p = this.player;
-    const sky = skyAt(this.world.dimension === 'overworld' ? this.timeOfDay : 0.75);
+    let sky = skyAt(this.world.dimension === 'overworld' ? this.timeOfDay : 0.75);
+    if (this.world.dimension === 'overworld') sky = this.weatherSky(sky);
     this.skyState = sky;
     const dim = this.world.dimension;
     const style = DIM_STYLE[dim];
@@ -1728,6 +1773,8 @@ export class Game {
       };
     }
     const feet = this.world.getBlock(Math.floor(cam[0]), Math.floor(cam[1]), Math.floor(cam[2]));
+    this.weatherLayers ??= { rain: textureIndex('rain'), snow: textureIndex('snow'), white: textureIndex('particle_white') };
+    const weather = this.weather.geometry(this, cam, this.clock, Math.max(0.22, sky.daylight * 0.95), this.weatherLayers);
     return {
       cam, yaw, pitch, roll,
       fov: (fov * Math.PI) / 180,
@@ -1744,6 +1791,7 @@ export class Game {
       entities,
       items,
       beams,
+      weather,
       hand,
     };
   }

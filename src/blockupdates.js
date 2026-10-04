@@ -283,9 +283,11 @@ export class BlockUpdater {
       while (h < 4 && world.getBlock(x, y - h, z) === id) h++;
       if (h < 3 && world.getBlock(x, y + 1, z) === B.AIR && Math.random() < 0.15) world.setBlock(x, y + 1, z, id);
     } else if (id === B.FIRE) {
-      if (world.getBlock(x, y - 1, z) !== B.NETHERRACK && Math.random() < 0.4) world.setBlock(x, y, z, B.AIR);
+      const rained = game.weather?.wet(world, x + 0.5, y + 0.5, z + 0.5);
+      if ((world.getBlock(x, y - 1, z) !== B.NETHERRACK || rained) && Math.random() < (rained ? 0.9 : 0.4)) world.setBlock(x, y, z, B.AIR);
     } else if (id === B.FARMLAND) {
-      if (!this.waterNear(x, y, z) && !BLOCKS[world.getBlock(x, y + 1, z)].crop && Math.random() < 0.2) world.setBlock(x, y, z, B.DIRT);
+      const rained = game.weather?.wet(world, x + 0.5, y + 1.5, z + 0.5);
+      if (!rained && !this.waterNear(x, y, z) && !BLOCKS[world.getBlock(x, y + 1, z)].crop && Math.random() < 0.2) world.setBlock(x, y, z, B.DIRT);
     } else if (LEAVES[id]) {
       const i = blockIndex(x - chunk.cx * CHUNK, y, z - chunk.cz * CHUNK);
       if (world.edits.get(chunk.key)?.get(i) === id) return; // placed by the player: stays

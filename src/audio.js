@@ -175,6 +175,8 @@ const VOICES = {
   portal: (v) => { hiss('bandpass', 500, 2, 0.15 * v, 0, 1); tone('sine', 120, 480, 2, 0.06 * v); },
   glass: (v) => { for (let i = 0; i < 3; i++) chime(ctx.currentTime + i * 0.03, 2400 + Math.random() * 1800); void v; },
   splash: (v) => hiss('lowpass', 900, 0.5, 0.25 * v),
+  rain: (v) => { hiss('bandpass', 2600, 0.75, 0.05 * v, 0, 0.4); hiss('lowpass', 600, 0.75, 0.05 * v, 0, 0.5); },
+  thunder: (v) => { hiss('lowpass', 1800, 0.35, 0.45 * v, 0, 0.5); hiss('lowpass', 150, 3.2, 0.7 * v, 0.08, 0.7); tone('sine', 55, 26, 2.6, 0.3 * v, 0.05); },
   levelup: (v) => { tone('sine', 523, 523, 0.25, 0.12 * v); tone('sine', 659, 659, 0.25, 0.12 * v, 0.12); tone('sine', 784, 784, 0.45, 0.12 * v, 0.24); },
   break_tool: (v) => { hiss('highpass', 2000, 0.3, 0.2 * v); tone('square', 900, 300, 0.2, 0.08 * v); },
 };

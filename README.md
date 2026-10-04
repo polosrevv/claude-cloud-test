@@ -50,6 +50,11 @@ You need a browser with WebGL2: current Chrome, Edge, Firefox or Safari, on desk
   - Two water sources make a third.
   - Water poured on still lava makes obsidian; on flowing lava it makes cobblestone.
   - Water carries off torches and plants.
+- **Weather.** Rain, snow and thunderstorms come and go on Minecraft's schedule.
+  - It snows in cold biomes and stays dry in deserts. Rain stops at the first block, so it never rains indoors.
+  - Storms darken the sky enough for monsters to spawn by day. Lightning sets fires and hurts anything close.
+  - Rain puts out fires and burning mobs, keeps zombies and skeletons from burning, waters farmland, and hurts endermen.
+  - You can sleep through a thunderstorm.
 - **Things grow.** Wheat grows on watered farmland, saplings grow into trees, and grass spreads. Sugar cane and cactus grow taller. Leaves decay when their tree is cut down. Bone meal speeds all of this up.
 - **Working blocks:**
   - Doors open and close.
@@ -100,13 +105,14 @@ Commands work in worlds created with cheats on. Coordinates accept `~` for "rela
 | `/gamemode <survival\|creative\|spectator>` | Change your game mode |
 | `/difficulty <peaceful\|easy\|normal\|hard>` | Change the difficulty |
 | `/time set <day\|night\|noon\|midnight\|ticks>`, `/time add <ticks>` | Change the time |
+| `/weather <clear\|rain\|thunder> [seconds]` | Change the weather |
 | `/tp <x> <y> <z>` | Teleport |
 | `/give <item> [count]` | Give yourself items |
 | `/summon <mob> [x y z]` | Spawn a mob |
 | `/kill [@e\|@e[type=<mob>]]` | Kill yourself, or all mobs |
 | `/setblock`, `/fill` | Place one block, or fill a box |
 | `/clear`, `/heal`, `/spawnpoint` | Inventory, health and spawn helpers |
-| `/gamerule <rule> [true\|false]` | Change `keepInventory`, `doDaylightCycle`, `doMobSpawning`, `mobGriefing`, `doFireTick` or `naturalRegeneration` |
+| `/gamerule <rule> [true\|false]` | Change `keepInventory`, `doDaylightCycle`, `doWeatherCycle`, `doMobSpawning`, `mobGriefing`, `doFireTick` or `naturalRegeneration` |
 | `/locate <stronghold\|fortress>` | Find the nearest structure |
 | `/seed`, `/say`, `/help` | Show the seed, say something, list the commands |
 
@@ -134,6 +140,7 @@ src/dragon.js         the Ender Dragon fight
 src/portals.js        nether portal lighting and linking, end portal frames
 src/commands.js       chat commands and Tab completion
 src/advancements.js   advancements and the goal hint
+src/weather.js        rain, snow, thunderstorms and lightning
 src/mesher.js         light flood-fill and chunk meshing (culling, AO, smooth light, block models)
 src/renderer.js       WebGL2: sky, chunks, water, entities, particles, held item, overlays
 src/textures.js       procedural 16x16 block textures; src/sprites.js draws items; src/skins.js draws mobs
@@ -157,4 +164,4 @@ npm test
 The tests use Node's built-in test runner. They cover:
 
 - **World:** terrain determinism in all three dimensions, structures, cross-chunk trees, meshing and culling, lighting, raycasting, saving edits, and player physics.
-- **Rules:** recipes, inventory clicking, furnaces, mining speeds and harvest tiers, flowing water and lava, falling blocks, crop and tree growth, portals, pathfinding, advancements and commands.
+- **Rules:** recipes, inventory clicking, furnaces, mining speeds and harvest tiers, flowing water and lava, falling blocks, crop and tree growth, portals, pathfinding, weather, advancements and commands.

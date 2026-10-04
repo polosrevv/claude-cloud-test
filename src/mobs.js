@@ -352,14 +352,15 @@ function environment(e, game) {
   });
   e.inWater = inWater;
   e.inLava = inLava;
-  if (inWater) e.fire = 0;
+  const inRain = !!game.weather?.wet(world, e.pos[0], e.pos[1] + e.h, e.pos[2]);
+  if (inWater || inRain) e.fire = 0;
   if (!def.fireImmune) {
     if (inLava) {
       e.fire = Math.max(e.fire, 300);
       if (e.age % 10 === 0) hurtMob(e, 4, game, { kind: 'lava' });
     }
     if (fire) e.fire = Math.max(e.fire, 160);
-    if (def.burns && game.isDay() && !inWater && !e.helmet) {
+    if (def.burns && game.isDay() && !inWater && !inRain && !e.helmet) {
       const head = [Math.floor(e.pos[0]), Math.floor(e.pos[1] + e.h), Math.floor(e.pos[2])];
       if (world.skyLightAt(head[0], head[1], head[2]) >= 15 && game.sunlight() > 0.8 && Math.random() < 0.3) e.fire = Math.max(e.fire, 160);
     }
@@ -372,7 +373,7 @@ function environment(e, game) {
     e.fire = 0;
   }
   if (cactus && e.age % 10 === 0) hurtMob(e, 1, game, { kind: 'cactus' });
-  if (e.type === 'enderman' && inWater && e.age % 10 === 0) {
+  if (e.type === 'enderman' && (inWater || inRain) && e.age % 10 === 0) {
     hurtMob(e, 1, game, { kind: 'water' });
     teleportRandomly(e, game);
   }

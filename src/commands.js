@@ -7,13 +7,14 @@ import { HEIGHT } from './constants.js';
 const GAMEMODES = { survival: 'survival', s: 'survival', 0: 'survival', creative: 'creative', c: 'creative', 1: 'creative', spectator: 'spectator', sp: 'spectator', 3: 'spectator' };
 const DIFFICULTIES = { peaceful: 'peaceful', p: 'peaceful', 0: 'peaceful', easy: 'easy', e: 'easy', 1: 'easy', normal: 'normal', n: 'normal', 2: 'normal', hard: 'hard', h: 'hard', 3: 'hard' };
 const TIMES = { day: 1000, noon: 6000, sunset: 12000, night: 13000, midnight: 18000, sunrise: 23000 };
-const GAMERULES = ['keepInventory', 'doDaylightCycle', 'doMobSpawning', 'mobGriefing', 'doFireTick', 'naturalRegeneration'];
+const GAMERULES = ['keepInventory', 'doDaylightCycle', 'doWeatherCycle', 'doMobSpawning', 'mobGriefing', 'doFireTick', 'naturalRegeneration'];
 
 export const COMMANDS = {
   help: { usage: '/help', about: 'List the commands' },
   gamemode: { usage: '/gamemode <survival|creative|spectator>', about: 'Change your game mode' },
   difficulty: { usage: '/difficulty <peaceful|easy|normal|hard>', about: 'How dangerous mobs are' },
   time: { usage: '/time set <day|noon|night|midnight|ticks> or /time add <ticks>', about: 'Change the time of day' },
+  weather: { usage: '/weather <clear|rain|thunder> [seconds]', about: 'Change the weather' },
   tp: { usage: '/tp <x> <y> <z>', about: 'Teleport (use ~ for relative coordinates)' },
   give: { usage: '/give <item> [count]', about: 'Give yourself items' },
   summon: { usage: '/summon <mob> [x y z]', about: 'Spawn a mob' },
@@ -23,7 +24,7 @@ export const COMMANDS = {
   clear: { usage: '/clear', about: 'Empty your inventory' },
   spawnpoint: { usage: '/spawnpoint', about: 'Respawn where you stand' },
   seed: { usage: '/seed', about: 'Show the world seed' },
-  gamerule: { usage: '/gamerule <rule> [true|false]', about: 'keepInventory, doDaylightCycle, doMobSpawning, mobGriefing, naturalRegeneration' },
+  gamerule: { usage: '/gamerule <rule> [true|false]', about: 'keepInventory, doDaylightCycle, doWeatherCycle, doMobSpawning, mobGriefing, naturalRegeneration' },
   locate: { usage: '/locate <stronghold|fortress>', about: 'Find the nearest structure' },
   heal: { usage: '/heal', about: 'Restore health and hunger' },
   say: { usage: '/say <message>', about: 'Say something in chat' },
@@ -93,6 +94,14 @@ export function runCommand(game, text) {
       } else if (sub === 'query') {
         say(`The time is ${Math.floor(game.dayTicks % 24000)}`);
       } else err(`Usage: ${COMMANDS.time.usage}`);
+      break;
+    }
+    case 'weather': {
+      const kind = args[0]?.toLowerCase();
+      if (!['clear', 'rain', 'thunder'].includes(kind)) { err(`Usage: ${COMMANDS.weather.usage}`); break; }
+      const secs = Number(args[1]);
+      game.weather.set(kind, Number.isFinite(secs) && secs > 0 ? Math.round(secs * 20) : undefined);
+      say({ clear: 'Set the weather to clear', rain: 'Set the weather to rain', thunder: 'Set the weather to rain & thunder' }[kind]);
       break;
     }
     case 'tp':
@@ -238,6 +247,7 @@ export function complete(text) {
   else if (cmd === 'gamerule' && parts.length === 2) options = GAMERULES;
   else if (cmd === 'gamerule' && parts.length === 3) options = ['true', 'false'];
   else if (cmd === 'locate') options = ['stronghold', 'fortress'];
+  else if (cmd === 'weather' && parts.length === 2) options = ['clear', 'rain', 'thunder'];
   else if (cmd === 'kill') options = ['@s', '@e', ...Object.keys(MOBS).map((m) => `@e[type=${m}]`)];
   return options.filter((o) => o.toLowerCase().startsWith(last)).map((o) => head + o);
 }

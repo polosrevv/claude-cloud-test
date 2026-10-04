@@ -736,6 +736,26 @@ const GEN = {
     }
   },
   particle_white(t) { for (let i = 0; i < t.length; i++) t[i] = 255; },
+  // Weather tiles repeat vertically: streaks of rain and loose snowflakes.
+  rain(t, r) {
+    clear(t);
+    for (let i = 0; i < 3; i++) {
+      const x = (i * 5 + Math.floor(r() * 4)) % TILE;
+      const y0 = Math.floor(r() * TILE);
+      const len = 4 + Math.floor(r() * 5);
+      for (let k = 0; k < len; k++) put(t, x, (y0 + k) % TILE, mul([168, 190, 232], 0.85 + r() * 0.2), 120 + k * 18);
+    }
+  },
+  snow(t, r) {
+    clear(t);
+    for (let i = 0; i < 3; i++) {
+      const x = Math.floor(r() * 15);
+      const y = Math.floor(r() * 15);
+      put(t, x, y, [250, 250, 255], 235);
+      if (r() < 0.6) put(t, x + 1, y, [236, 240, 250], 200);
+      if (r() < 0.6) put(t, x, y + 1, [236, 240, 250], 200);
+    }
+  },
   arm(t, r) {
     noiseFill(t, r, [214, 160, 124], 0.03);
     rect(t, 0, 0, 15, 5, [60, 170, 190], r, 0.04);

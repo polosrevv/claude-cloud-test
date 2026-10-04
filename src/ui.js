@@ -143,6 +143,7 @@ export class Hud {
       `Chunks   ${r.chunks} drawn · ${game.world.chunks.size} loaded · ${this.app.streamer.pendingJobs} jobs`,
       `Entities ${game.entities.list.length} (${r.entities} drawn) · faces ${(r.quads / 1000).toFixed(1)}k`,
       `Time     ${clockLabel(game.timeOfDay)} · day ${Math.floor(game.dayTicks / 24000) + 1} · ${game.difficulty}`,
+      `Weather  ${game.weather.state.raining ? (game.weather.state.thundering ? 'thunderstorm' : 'rain') : 'clear'} · next change in ${Math.ceil(game.weather.state.rainTime / 1200)} min`,
       `Mode     ${p.mode}${p.flying ? ' · flying' : ''}`,
       `Seed     ${game.seedText}`,
     ];

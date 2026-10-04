@@ -9,6 +9,7 @@ import { runCommand, complete } from '../src/commands.js';
 import { MOBS, createMob, findPath } from '../src/mobs.js';
 import { tryLightPortal, checkEndPortal } from '../src/portals.js';
 import { ADVANCEMENTS } from '../src/advancements.js';
+import { Weather } from '../src/weather.js';
 import { flatWorld, blockSim } from './helpers.js';
 
 const grid = (rows) => rows.flat();
@@ -320,6 +321,7 @@ function commandGame() {
     hud: { refreshHotbar() {} },
     entities: { list: [], add(e) { this.list.push(e); } },
     dayTicks: 0,
+    weather: new Weather(),
     difficulty: 'normal',
     gamerules: { keepInventory: false },
     seedText: 'abc',
@@ -349,6 +351,9 @@ test('commands change the world', () => {
   assert.equal(g.entities.list[0].type, 'zombie');
   runCommand(g, '/gamerule keepInventory true');
   assert.equal(g.gamerules.keepInventory, true);
+  runCommand(g, '/weather thunder 60');
+  assert.ok(g.weather.state.raining && g.weather.state.thundering);
+  assert.equal(g.weather.state.rainTime, 1200);
   runCommand(g, '/heal');
   assert.equal(g.player.health, 20);
   assert.equal(runCommand(g, '/nonsense')[0].kind, 'error');
@@ -367,4 +372,29 @@ test('tab completion suggests commands and arguments', () => {
   assert.ok(complete('/ga').includes('/gamemode'));
   assert.ok(complete('/give diam').some((c) => c.endsWith('diamond')));
   assert.ok(complete('/summon cr').some((c) => c.endsWith('creeper')));
+});
+
+test('rain comes and goes, and only falls where the sky is open', () => {
+  const w = flatWorld(1, 10);
+  const weather = new Weather();
+  assert.equal(weather.state.raining, false);
+  const game = { world: w, player: { pos: [0, 11, 0] }, gamerules: {}, particles: { burst() {} }, sound() {}, tickCount: 0, difficulty: 'normal' };
+  weather.set('rain', 400);
+  for (let i = 0; i < 120; i++) weather.tick(game);
+  assert.equal(weather.rain, 1);
+  // Find a column where rain (not snow) falls on this seed.
+  let x = 0;
+  while (weather.kindAt(w, x, 0) !== 'rain' && x < 15) x++;
+  assert.equal(weather.kindAt(w, x, 0), 'rain');
+  assert.equal(weather.topAt(w, x, 0), 10);
+  assert.ok(weather.wet(w, x + 0.5, 11, 0.5));
+  w.setBlock(x, 14, 0, B.STONE);
+  assert.equal(weather.wet(w, x + 0.5, 11, 0.5), false, 'a roof keeps the rain off');
+  // When the shower's time runs out the sky clears.
+  for (let i = 0; i < 400; i++) weather.tick(game);
+  assert.equal(weather.state.raining, false);
+  for (let i = 0; i < 120; i++) weather.tick(game);
+  assert.equal(weather.rain, 0);
+  // The Nether never sees rain.
+  assert.equal(weather.kindAt({ dimension: 'nether' }, 0, 0), null);
 });
